@@ -161,14 +161,15 @@ class DTRController extends Controller
         $templatePath = storage_path('app/templates/Sample.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
+        // Replace placeholders for employee name and month
         $templateProcessor->setValue('employee_name', strtoupper($employee));
         $templateProcessor->setValue('month_name', $monthName);
 
         $daysInMonth = Carbon::parse($month . '-01')->daysInMonth;
 
         // Clone rows for both tables
-        $templateProcessor->cloneRow('day', $daysInMonth);   // first table
-        $templateProcessor->cloneRow('day2', $daysInMonth);  // second table
+        $templateProcessor->cloneRow('n', $daysInMonth);   // first table
+        $templateProcessor->cloneRow('2', $daysInMonth);  // second table
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$month}-{$day}");
@@ -197,21 +198,21 @@ class DTRController extends Controller
                 }
             }
 
-            // Fill first table
-            $templateProcessor->setValue("day#{$day}", $day);
-            $templateProcessor->setValue("weekday#{$day}", $weekday);
-            $templateProcessor->setValue("check_in#{$day}", $checkIn);
-            $templateProcessor->setValue("break_out#{$day}", $breakOut);
-            $templateProcessor->setValue("break_in#{$day}", $breakIn);
-            $templateProcessor->setValue("check_out#{$day}", $checkOut);
+            // Fill first table (formatted in template)
+            $templateProcessor->setValue("n#{$day}", $day);
+            $templateProcessor->setValue("d#{$day}", $weekday);
+            $templateProcessor->setValue("c_in#{$day}", $checkIn);
+            $templateProcessor->setValue("b_out#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in#{$day}", $breakIn);
+            $templateProcessor->setValue("c_out#{$day}", $checkOut);
 
             // Fill second table
-            $templateProcessor->setValue("day2#{$day}", $day);
-            $templateProcessor->setValue("weekday2#{$day}", $weekday);
-            $templateProcessor->setValue("check_in2#{$day}", $checkIn);
-            $templateProcessor->setValue("break_out2#{$day}", $breakOut);
-            $templateProcessor->setValue("break_in2#{$day}", $breakIn);
-            $templateProcessor->setValue("check_out2#{$day}", $checkOut);
+            $templateProcessor->setValue("2#{$day}", $day);       // if you clone row for second table separately, use "n2#{$day}" placeholder in template
+            $templateProcessor->setValue("l#{$day}", $weekday);   // match exactly `${d}` in template
+            $templateProcessor->setValue("c_in2#{$day}", $checkIn);
+            $templateProcessor->setValue("b_ou2#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in2#{$day}", $breakIn);
+            $templateProcessor->setValue("c_ou2#{$day}", $checkOut);
         }
 
         $outputPath = storage_path("app/public/DTR_{$employee}_{$month}.docx");
