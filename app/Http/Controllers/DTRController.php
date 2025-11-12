@@ -25,6 +25,117 @@ class DTRController extends Controller
             return response()->json(['error' => 'No log provided'], 400);
         }
 
+        // Extended list of Filipino first/last names (expand as needed)
+        $nameDictionary = [
+            // Corrected / Fixed Names
+            'EMMANUEL','MACALINAO',
+            'ARBIE','TALUCOD','ESTRELLA',
+            'JOMAR','PIMENTEL',
+            'KRIZ-TATUM OLAES LAPPAY', // keep as single name, no spacing
+            'KATRINE','NAVAJA',
+            'MARIA','KATRINA','MALLILLIN',
+            'MARICRIS','PEREZ',
+            'MARINEL','MACARANAS',
+            'MARY','JANE','TENORIO',
+            'MARY','JOY','MENGULLO',
+            'MARK','JEFFERSON','CALUAG',
+            'ROHN','JERICHO','DAYAP',
+            'ROLANDO','RIVERA',
+            'RONA','MAY','MARIN',
+            'STEPHANIE','MAE','VALIENTE',
+            'SHARA','MAE','BERMUDEZ',
+            'RAMONA','ALLAUIGAN','DIANCIN',
+            'ERA','BABBLE','CASTRO',
+            'OFELIA','SARDENIA','CONAG',
+            'REIZLE','GACUSAN',
+            'RENZ','ESTRELLA',
+
+            // Original Names
+            'VIVIANNE','VISPERAS','CUNAN',
+            'CYNTHIA','MANANGU','SAGUM',
+            'KENNETH','RODRIGUEZ','ROL',
+            'ARMANDO','GUIAO','SAWIT',
+            'BHEBLIA','JOY','PASAGDAN',
+            'JETHRO','TORRES','CERVANTES',
+            'AURORA','CRISTOBAL','AQUINO',
+            'JOSE','WILFREDO','LUCAS',
+            'DANIEL','RABARA','DOMINGO',
+            'DAN','SAYTONO',
+            'JESSICA','GARCIA',
+            'WINLOVE','BERNALES',
+            'DENNIS','HERNANDEZ','LOPEZ',
+            'CHRISTIAN','O.','SANTOS',
+            'EDMAR','A.','GALLARDO',
+            'MICHAEL','ESPOIR','JOVEN',
+            'DONNA','BRIONES',
+            'PERLITA','CAPARAS',
+            'EDUARDO','MANLUNAS',
+            'ALEXANDRE','JUSTIN','REPIA',
+            'JAN','MICHAEL','CAMPUED'
+        ];
+
+        $exceptions = [
+            'KRIZ-TATUM OLAES LAPPAY' => 'KRIZ-TATUM OLAES LAPPAY',
+            'APRIL LYNN ESPAYOS NAVA' => 'APRIL LYNN ESPAYOS NAVA',
+            'JOANAH MARIE PESCADOR O' => 'JOANAH MARIE PESCADOR O',
+            'LIBRADO F GELLEZ JR' => 'LIBRADO F GELLEZ JR',
+            'MELVIN ARIMAGAO MASIN' => 'MELVIN ARIMAGAO MASIN',
+            'MARIANNE PASCUAL GONZAL' => 'MARIANNE PASCUAL GONZALES',
+            'MARICRIS ACOSTA GONZALE' => 'MARICRIS ACOSTA GONZALES',
+            'TERESA DELA CRUZ PARAIS' => 'TERESA DELA CRUZ PARAISO',
+            'THELMA BATARA CASTRICIO' => 'THELMA BATARA CASTRICIONES',
+            'MA LEONORAJIMENEZ VALIE' => 'MA LEONORA JIMENEZ VALIENTE',
+            'ARGENTINA SEBASTIAN ABE' => 'ARGENTINA SEBASTIAN ABERIN'
+        ];
+
+        $formatName = function($rawName) use ($nameDictionary, $exceptions) {
+            $rawName = preg_replace('/[^a-zA-Z\.\- ]/', '', $rawName);
+            $rawName = strtoupper($rawName);
+
+            // 🔹 Check for exceptions
+            foreach ($exceptions as $wrong => $correct) {
+                if (str_replace(' ', '', $rawName) === str_replace(' ', '', strtoupper($wrong))) {
+                    return $correct; // return corrected name
+                }
+            }
+
+            // 🔹 Otherwise, process normally with dictionary
+            $formatted = [];
+            $remaining = $rawName;
+
+            usort($nameDictionary, fn($a,$b) => strlen($b) - strlen($a));
+
+            while ($remaining) {
+                $matched = false;
+
+                foreach ($nameDictionary as $word) {
+                    if (str_starts_with($remaining, $word)) {
+                        $formatted[] = $word;
+                        $remaining = substr($remaining, strlen($word));
+                        $matched = true;
+                        break;
+                    }
+                }
+
+                if (!$matched) {
+                    if (preg_match('/^([A-Z]\.?)(.*)$/', $remaining, $m)) {
+                        $formatted[] = $m[1];
+                        $remaining = $m[2] ?? '';
+                    } else {
+                        if (preg_match('/^([A-Z]{2,})(.*)$/', $remaining, $m)) {
+                            $formatted[] = $m[1];
+                            $remaining = $m[2] ?? '';
+                        } else {
+                            $formatted[] = $remaining[0];
+                            $remaining = substr($remaining, 1);
+                        }
+                    }
+                }
+            }
+
+            return implode(' ', $formatted); // ALL CAPS, spaced
+        };
+
         // 🔸 Parse raw text line-by-line
         $lines = preg_split('/\r?\n/', trim($logText));
         $records = [];
@@ -33,12 +144,12 @@ class DTRController extends Controller
             $line = trim($line);
             if ($line === '') continue;
 
-            // Example: "VIVIANNE VISPERAS CUNAN 10/01/2025 12:26:22 PM"
+            // Example: "danielrabaradomingo 10/01/2025 12:26:22 PM"
             if (!preg_match('/^(.*?)\s+(\d{2}\/\d{2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
                 continue;
             }
 
-            $name = trim($mLine[1]);
+            $name = $formatName($mLine[1]); // Auto-format name properly
             $datetime = trim($mLine[2]);
 
             if (!preg_match('/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
@@ -52,18 +163,15 @@ class DTRController extends Controller
             $min = (int)$m[5];
             $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
 
-            // Convert to 24-hour format
             if ($ampm === 'PM' && $hour < 12) $hour += 12;
             if ($ampm === 'AM' && $hour == 12) $hour = 0;
 
-            $displayTime = sprintf('%d:%02d', ($hour % 12 == 0 ? 12 : $hour % 12), $min);
             $time24 = sprintf('%02d:%02d', $hour, $min);
             $dateKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
             $monthKey = sprintf('%04d-%02d', $year, $month);
 
             $records[$name][$monthKey][$dateKey]['logs'][] = [
                 'time24' => $time24,
-                'display' => $displayTime,
                 'hour24' => $hour
             ];
         }
@@ -82,7 +190,6 @@ class DTRController extends Controller
             foreach ($months as $month => $days) {
                 foreach ($days as $date => $rec) {
                     foreach ($rec['logs'] as $log) {
-                        // Avoid duplicates if re-uploaded
                         DTRRecord::firstOrCreate([
                             'employee_name' => $name,
                             'log_date' => $date,
@@ -98,6 +205,8 @@ class DTRController extends Controller
             'message' => 'DTR records have been successfully saved to the database.'
         ]);
     }
+
+
 
     // Viewer landing page
     public function view()
@@ -115,7 +224,7 @@ class DTRController extends Controller
 
         $employees = \DB::table(\DB::raw("({$employeesQuery->toSql()}) as sub"))
             ->mergeBindings($employeesQuery->getQuery())
-            ->paginate(5)
+            ->paginate(15)
             ->withQueryString();
 
         // Build records from the current page items, converting every nested collection to arrays.

@@ -5,12 +5,19 @@ export default function DTRLanding({ records, employees, filters }) {
     const today = new Date();
     const currentMonth = filters?.month || today.getMonth() + 1;
     const currentYear = filters?.year || today.getFullYear();
+    const employeeList = Array.isArray(employees.data) ? employees.data : [];
 
     const [search, setSearch] = useState(filters?.search || '');
     const [filterMonth, setFilterMonth] = useState(currentMonth);
     const [filterYear, setFilterYear] = useState(currentYear);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (selectedEmployee && !employeeList.some(emp => emp.employee_name === selectedEmployee)) {
+            setSelectedEmployee(null);
+        }
+    }, [employeeList]);
 
     const performRequest = ({ searchValue, monthValue, yearValue, selected = null }) => {
         if (!searchValue && !selected) {
@@ -147,19 +154,19 @@ export default function DTRLanding({ records, employees, filters }) {
             <>
             {/* Employee list */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                {employees.data.map((emp) => (
-                <button
+                {employeeList.map((emp) => (
+                    <button
                     key={emp.employee_name}
                     onClick={() => {
-                    setSelectedEmployee(emp.employee_name);
-                    handleSearch(emp.employee_name);
+                        setSelectedEmployee(emp.employee_name);
+                        handleSearch(emp.employee_name);
                     }}
                     className={`border rounded-lg px-4 py-2 text-left hover:bg-blue-50 ${
-                    selectedEmployee === emp.employee_name ? 'bg-blue-100 border-blue-500' : ''
+                        selectedEmployee === emp.employee_name ? 'bg-blue-100 border-blue-500' : ''
                     }`}
-                >
+                    >
                     <span className="font-semibold text-blue-700">{emp.employee_name}</span>
-                </button>
+                    </button>
                 ))}
             </div>
 
@@ -168,21 +175,22 @@ export default function DTRLanding({ records, employees, filters }) {
                 <div className="flex justify-center mb-6 gap-2">
                 {Array.from({ length: employees.last_page }, (_, i) => i + 1).map((page) => (
                     <button
-                    key={page}
-                    onClick={() =>
+                        key={page}
+                        onClick={() => {
+                        setSelectedEmployee(null); // reset selection
                         router.get(
-                        route('dtr.view'),
-                        { page, search, month: filterMonth, year: filterYear },
-                        { preserveState: true }
-                        )
-                    }
-                    className={`px-3 py-1 rounded ${
+                            route('dtr.view'),
+                            { page, search, month: filterMonth, year: filterYear },
+                            { preserveState: true }
+                        );
+                        }}
+                        className={`px-3 py-1 rounded ${
                         employees.current_page === page ? 'bg-blue-600 text-white' : 'bg-gray-200'
-                    }`}
+                        }`}
                     >
-                    {page}
+                        {page}
                     </button>
-                ))}
+                    ))}
                 </div>
             )}
 
