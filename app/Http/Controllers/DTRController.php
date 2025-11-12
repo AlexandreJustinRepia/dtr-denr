@@ -149,7 +149,6 @@ class DTRController extends Controller
     public function generateDocx($employee, $month)
     {
         $monthName = Carbon::parse($month . '-01')->format('F Y');
-        $daysInMonth = Carbon::parse($month . '-01')->daysInMonth;
 
         $records = DTRRecord::where('employee_name', $employee)
             ->whereMonth('log_date', Carbon::parse($month)->month)
@@ -159,43 +158,64 @@ class DTRController extends Controller
             ->get()
             ->groupBy('log_date');
 
-        // Load the DOCX template
-        $templatePath = storage_path('app/templates/SAMPLE.docx');
-        $template = new TemplateProcessor($templatePath);
+        $templatePath = storage_path('app/templates/Sample.docx');
+        $templateProcessor = new TemplateProcessor($templatePath);
 
-        // Fill placeholders (if your DOCX has tags like ${name}, ${month})
-        $template->setValue('name', $employee);
-        $template->setValue('month', $monthName);
+        $templateProcessor->setValue('employee_name', strtoupper($employee));
+        $templateProcessor->setValue('month_name', $monthName);
 
-        // Create temporary table content
-        $tableRows = [];
+        $daysInMonth = Carbon::parse($month . '-01')->daysInMonth;
+
+        // Clone rows for both tables
+        $templateProcessor->cloneRow('day', $daysInMonth);   // first table
+        $templateProcessor->cloneRow('day2', $daysInMonth);  // second table
+
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$month}-{$day}");
-            $weekday = $date->format('l');
+            $weekday = $date->format('D');
             $logs = $records[$date->format('Y-m-d')] ?? collect();
 
-            $checkIn = $logs[0]->log_time ?? '';
-            $breakOut = $logs[1]->log_time ?? '';
-            $breakIn = $logs[2]->log_time ?? '';
-            $checkOut = $logs[3]->log_time ?? '';
+            $checkIn = $breakOut = $breakIn = $checkOut = '';
 
-            $tableRows[] = [
-                'day' => $day . " ($weekday)",
-                'check_in' => $checkIn,
-                'break_out' => $breakOut,
-                'break_in' => $breakIn,
-                'check_out' => $checkOut,
-                'late' => '',
-                'undertime' => '',
-            ];
+            foreach ($logs as $log) {
+                $time24 = substr($log->log_time, 0, 5);
+                $timeObj = Carbon::createFromFormat('H:i', $time24);
+                $hour = (int)$timeObj->format('H');
+
+                $time12 = $timeObj->format('g:i'); // 12-hour without AM/PM
+
+                if ($hour >= 5 && $hour <= 11) {
+                    $checkIn = $time12;
+                } elseif ($hour == 12) {
+                    if (empty($breakOut)) {
+                        $breakOut = $time12;
+                    } else {
+                        $breakIn = $time12;
+                    }
+                } elseif ($hour >= 13 && $hour <= 21) {
+                    $checkOut = $time12;
+                }
+            }
+
+            // Fill first table
+            $templateProcessor->setValue("day#{$day}", $day);
+            $templateProcessor->setValue("weekday#{$day}", $weekday);
+            $templateProcessor->setValue("check_in#{$day}", $checkIn);
+            $templateProcessor->setValue("break_out#{$day}", $breakOut);
+            $templateProcessor->setValue("break_in#{$day}", $breakIn);
+            $templateProcessor->setValue("check_out#{$day}", $checkOut);
+
+            // Fill second table
+            $templateProcessor->setValue("day2#{$day}", $day);
+            $templateProcessor->setValue("weekday2#{$day}", $weekday);
+            $templateProcessor->setValue("check_in2#{$day}", $checkIn);
+            $templateProcessor->setValue("break_out2#{$day}", $breakOut);
+            $templateProcessor->setValue("break_in2#{$day}", $breakIn);
+            $templateProcessor->setValue("check_out2#{$day}", $checkOut);
         }
 
-        // Replace a table placeholder (if you used a cloned row like ${day}, ${check_in}…)
-        $template->cloneRowAndSetValues('day', $tableRows);
-
-        // Save generated file
         $outputPath = storage_path("app/public/DTR_{$employee}_{$month}.docx");
-        $template->saveAs($outputPath);
+        $templateProcessor->saveAs($outputPath);
 
         return response()->download($outputPath)->deleteFileAfterSend(true);
     }
