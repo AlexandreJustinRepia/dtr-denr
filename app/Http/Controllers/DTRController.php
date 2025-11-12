@@ -102,34 +102,53 @@ class DTRController extends Controller
     // Viewer landing page
     public function view()
     {
-        // Get all logs grouped by employee/month/day
-        $records = DTRRecord::orderBy('employee_name')
-            ->orderBy('log_date')
-            ->orderBy('log_time')
-            ->get()
-            ->groupBy('employee_name')
-            ->map(function ($employeeGroup) {
-                return $employeeGroup->groupBy(function ($record) {
-                    return Carbon::parse($record->log_date)->format('Y-m');
-                })->map(function ($monthGroup, $monthKey) {
+        $search = request('search', '');
+        $monthFilter = request('month', date('n'));
+        $yearFilter = request('year', date('Y'));
+
+        $employeesQuery = DTRRecord::select('employee_name')
+            ->distinct()
+            ->when($search, function($q) use ($search) {
+                $q->where('employee_name', 'like', "%{$search}%");
+            })
+            ->orderBy('employee_name');
+
+        $employees = \DB::table(\DB::raw("({$employeesQuery->toSql()}) as sub"))
+            ->mergeBindings($employeesQuery->getQuery())
+            ->paginate(5)
+            ->withQueryString();
+
+        // Build records from the current page items, converting every nested collection to arrays.
+        $records = collect($employees->items())
+            ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter) {
+                $months = DTRRecord::where('employee_name', $emp->employee_name)
+                    ->orderBy('log_date')
+                    ->orderBy('log_time')
+                    ->get()
+                    ->groupBy(function ($record) {
+                        return Carbon::parse($record->log_date)->format('Y-m');
+                    });
+
+                // Filter by month/year and build a pure-array structure
+                $result = [];
+                foreach ($months as $monthKey => $monthGroup) {
                     $year = (int) substr($monthKey, 0, 4);
                     $month = (int) substr($monthKey, 5, 2);
+                    if ($year !== (int) $yearFilter || $month !== (int) $monthFilter) {
+                        continue;
+                    }
 
-                    // Build all days of the month
                     $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
                     $structured = [];
 
                     for ($day = 1; $day <= $daysInMonth; $day++) {
                         $date = Carbon::create($year, $month, $day);
                         $dateStr = $date->format('Y-m-d');
-                        $weekday = $date->format('D'); // Mon, Tue, Wed, etc.
+                        $weekday = $date->format('D');
 
-                        // Get logs for that date if they exist
                         $logs = $monthGroup->where('log_date', $dateStr)->map(function ($log) {
-                            return [
-                                'time' => $log->log_time,
-                            ];
-                        })->values();
+                            return ['time' => $log->log_time];
+                        })->values()->toArray();
 
                         $structured[$dateStr] = [
                             'weekday' => $weekday,
@@ -137,14 +156,25 @@ class DTRController extends Controller
                         ];
                     }
 
-                    return $structured;
-                });
-            });
+                    $result[$monthKey] = $structured;
+                }
+
+                return [$emp->employee_name => $result];
+            })
+            ->toArray();
 
         return Inertia::render('Viewer/DTRLanding', [
             'records' => $records,
+            'employees' => $employees->toArray(),       // paginator as plain array
+            'filters' => [
+                'search' => $search,
+                'month' => (int) $monthFilter,
+                'year' => (int) $yearFilter,
+            ],
         ]);
     }
+
+
 
     public function generateDocx($employee, $month)
     {
