@@ -210,11 +210,11 @@ export default function DTRLanding({ records, employees, filters }) {
                         {month} — Daily Time Record
                         </h3>
                         <a
-                        href={`/generate-dtr/${encodeURIComponent(selectedEmployee)}/${month}`}
-                        className={`px-4 py-2 rounded hover:bg-blue-700 text-white ${
-                            !isDTRAvailable ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600'
-                        }`}
-                        {...(!isDTRAvailable && { onClick: (e) => e.preventDefault() })}
+                            href={`/generate-dtr/${encodeURIComponent(selectedEmployee)}/${month}`}
+                            className={`px-4 py-2 rounded hover:bg-blue-700 text-white ${
+                                !isDTRAvailable ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600'
+                            }`}
+                            {...(!isDTRAvailable && { onClick: (e) => e.preventDefault() })}
                         >
                         Download DTR (DOCX)
                         </a>

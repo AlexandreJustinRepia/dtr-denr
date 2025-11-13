@@ -8,7 +8,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', [DTRController::class, 'view'])->name('dtr.view');
-Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generateDocx']);
+Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -8,6 +8,8 @@ use DateTime;
 use App\Models\DTRRecord;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
+use PhpOffice\PhpWord\IOFactory;
+use PhpOffice\PhpWord\Settings;
 use App\Models\DTRBatch;
 use Illuminate\Support\Facades\Hash;
 
@@ -67,24 +69,48 @@ class DTRController extends Controller
     /** Private method: parse log text */
     private function parseLogText(string $logText): array
     {
-        // Extended list of Filipino first/last names (expand as needed)
-        $nameDictionary = [
-            'EMMANUEL','MACALINAO','ARBIE','TALUCOD','ESTRELLA','JOMAR','PIMENTEL',
-            'KRIZ-TATUM OLAES LAPPAY','KATRINE','NAVAJA','MARIA','KATRINA','MALLILLIN',
-            'MARICRIS','PEREZ','MARINEL','MACARANAS','MARY','JANE','TENORIO','MARY','JOY','MENGULLO',
-            'MARK','JEFFERSON','CALUAG','ROHN','JERICHO','DAYAP','ROLANDO','RIVERA',
-            'RONA','MAY','MARIN','STEPHANIE','MAE','VALIENTE','SHARA','MAE','BERMUDEZ',
-            'RAMONA','ALLAUIGAN','DIANCIN','ERA','BABBLE','CASTRO','OFELIA','SARDENIA','CONAG',
-            'REIZLE','GACUSAN','RENZ','ESTRELLA','VIVIANNE','VISPERAS','CUNAN','CYNTHIA','MANANGU','SAGUM',
-            'KENNETH','RODRIGUEZ','ROL','ARMANDO','GUIAO','SAWIT','BHEBLIA','JOY','PASAGDAN',
-            'JETHRO','TORRES','CERVANTES','AURORA','CRISTOBAL','AQUINO','JOSE','WILFREDO','LUCAS',
-            'DANIEL','RABARA','DOMINGO','DAN','SAYTONO','JESSICA','GARCIA','WINLOVE','BERNALES',
-            'DENNIS','HERNANDEZ','LOPEZ','CHRISTIAN','O.','SANTOS','EDMAR','A.','GALLARDO',
-            'MICHAEL','ESPOIR','JOVEN','DONNA','BRIONES','PERLITA','CAPARAS','EDUARDO','MANLUNAS',
-            'ALEXANDRE','JUSTIN','REPIA','JAN','MICHAEL','CAMPUED'
-        ];
-
         $exceptions = [
+            'EMMANUELMACALINAO' => 'EMMANUEL MACALINAO',
+            'ARBIE TALUCOD ESTRELLA' => 'ARBIE TALUCOD ESTRELLA',
+            'jomar pimentel' => 'JOMAR PIMENTEL',
+            'katrine navaja' => 'KATRINE NAVAJA',
+            'maria katrina mallillin' => 'MARIA KATRINA MALLILLIN',
+            'MARICRISPEREZ' => 'MARICRIS PEREZ',
+            'MARINEL MACARANAS' => 'MARINEL MACARANAS',
+            'MARY JANE TENORIO' => 'MARY JANE TENORIO',
+            'maryjoymengullo' => 'MARY JOY MENGULLO',
+            'markjeffersoncaluag' => 'MARK JEFFERSON CALUAG',
+            'rohnjerichodayap' => 'ROHN JERICHO DAYAP',
+            'Rolando Rivera' => 'ROLANDO RIVERA',
+            'RONA MAY MARIN' => 'RONA MAY MARIN',
+            'STEPHANIE MAE VALIENTE' => 'STEPHANIE MAE VALIENTE',
+            'shara mae bermudez' => 'SHARA MAE BERMUDEZ',
+            'RAMONA ALLAUIGAN DIANCI' => 'RAMONA ALLAUIGAN DIANCIN',
+            'ERABABBLECASTRO' => 'ERA BABBLE CASTRO',
+            'OFELIA SARDENIA CONAG' => 'OFELIA SARDENIA CONAG',
+            'REIZLE GACUSAN' => 'REIZLE GACUSAN',
+            'RenzEstrella' => 'RENZ ESTRELLA',
+            'VIVIANNE VISPERAS CUNAN' => 'VIVIANNE VISPERAS CUNAN',
+            'CYNTHIA  MANANGU SAGUM' => 'CYNTHIA  MANANGU SAGUM',
+            'KENNETH RODRIGUEZ ROL' => 'KENNETH RODRIGUEZ ROL',
+            'ARMANDO GUIAO SAWIT' => 'ARMANDO GUIAO SAWIT',
+            'BHEBLIA JOY PASAGDAN' => 'BHEBLIA JOY PASAGDAN',
+            'JETHRO TORRES CERVANTES' => 'JETHRO TORRES CERVANTES',
+            'AURORA CRISTOBAL AQUINO' => 'AURORA CRISTOBAL AQUINO',
+            'Jose Wilfredo Lucas' => 'JOSE WILFREDO LUCAS',
+            'danielrabaradomingo' => 'DANIEL RABARA DOMINGO',
+            'DAN SAYTONO' => 'DAN SAYTONO',
+            'Jessica Garcia' => 'JESSICA GARCIA',
+            'WINLOVE BERNALES' => 'WINLOVE BERNALES',
+            'DENNIS HERNANDEZ LOPEZ' => 'DENNIS HERNANDEZ LOPEZ',
+            'christian o. santos' => 'CHRISTIAN O. SANTOS',
+            'EDMAR A  GALLARDO' => 'EDMAR A. GALLARDO',
+            'michael espoir joven' =>'MICHAEL ESPOIR JOVEN',
+            'donna briones' => 'DONNA BRIONES',
+            'perlita caparas' => 'PERLITA CAPARAS',
+            'EDUARDO MANLUNAS' => 'EDUARDO MANLUNAS',
+            'JAN MICHAEL CAMPUED' => 'JAN MICHAEL CAMPUED',
+            'Alexandre Justin Repia' =>'ALEXANDRE JUSTIN REPIA',
             'KRIZ-TATUM OLAES LAPPAY' => 'KRIZ-TATUM OLAES LAPPAY',
             'APRIL LYNN ESPAYOS NAVA' => 'APRIL LYNN ESPAYOS NAVA',
             'JOANAH MARIE PESCADOR O' => 'JOANAH MARIE PESCADOR O',
@@ -98,48 +124,20 @@ class DTRController extends Controller
             'ARGENTINA SEBASTIAN ABE' => 'ARGENTINA SEBASTIAN ABERIN'
         ];
 
-        $formatName = function($rawName) use ($nameDictionary, $exceptions) {
+        $formatName = function($rawName) use ($exceptions) {
+            // Clean name
             $rawName = preg_replace('/[^a-zA-Z\.\- ]/', '', $rawName);
-            $rawName = strtoupper($rawName);
+            $rawNameUpper = strtoupper($rawName);
 
-            // Check for exceptions
+            // Check exceptions
             foreach ($exceptions as $wrong => $correct) {
-                if (str_replace(' ', '', $rawName) === str_replace(' ', '', strtoupper($wrong))) {
+                if (str_replace(' ', '', $rawNameUpper) === str_replace(' ', '', strtoupper($wrong))) {
                     return $correct;
                 }
             }
 
-            // Process normally
-            $formatted = [];
-            $remaining = $rawName;
-            usort($nameDictionary, fn($a,$b) => strlen($b) - strlen($a));
-
-            while ($remaining) {
-                $matched = false;
-                foreach ($nameDictionary as $word) {
-                    if (str_starts_with($remaining, $word)) {
-                        $formatted[] = $word;
-                        $remaining = substr($remaining, strlen($word));
-                        $matched = true;
-                        break;
-                    }
-                }
-
-                if (!$matched) {
-                    if (preg_match('/^([A-Z]\.?)(.*)$/', $remaining, $m)) {
-                        $formatted[] = $m[1];
-                        $remaining = $m[2] ?? '';
-                    } elseif (preg_match('/^([A-Z]{2,})(.*)$/', $remaining, $m)) {
-                        $formatted[] = $m[1];
-                        $remaining = $m[2] ?? '';
-                    } else {
-                        $formatted[] = $remaining[0];
-                        $remaining = substr($remaining, 1);
-                    }
-                }
-            }
-
-            return implode(' ', $formatted);
+            // Otherwise, just uppercase and trim extra spaces
+            return trim(preg_replace('/\s+/', ' ', $rawNameUpper));
         };
 
         $lines = preg_split('/\r?\n/', trim($logText));
@@ -219,6 +217,7 @@ class DTRController extends Controller
             'totalRecords' => $total,
         ];
     }
+
 
     public function history()
     {
@@ -386,5 +385,92 @@ class DTRController extends Controller
         $templateProcessor->saveAs($outputPath);
 
         return response()->download($outputPath)->deleteFileAfterSend(true);
+    }
+
+    public function generatePdf($employee, $month)
+    {
+        $monthName = Carbon::parse($month . '-01')->format('F Y');
+
+        $records = DTRRecord::where('employee_name', $employee)
+            ->whereMonth('log_date', Carbon::parse($month)->month)
+            ->whereYear('log_date', Carbon::parse($month)->year)
+            ->orderBy('log_date')
+            ->orderBy('log_time')
+            ->get()
+            ->groupBy('log_date');
+
+        $templatePath = storage_path('app/templates/Sample.docx');
+        $templateProcessor = new TemplateProcessor($templatePath);
+
+        // Replace placeholders for employee name and month
+        $templateProcessor->setValue('employee_name', strtoupper($employee));
+        $templateProcessor->setValue('month_name', $monthName);
+
+        $daysInMonth = Carbon::parse($month . '-01')->daysInMonth;
+
+        // Clone rows for both tables
+        $templateProcessor->cloneRow('n', $daysInMonth);
+        $templateProcessor->cloneRow('2', $daysInMonth);
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = Carbon::createFromFormat('Y-m-d', "{$month}-{$day}");
+            $weekday = $date->format('D');
+            $logs = $records[$date->format('Y-m-d')] ?? collect();
+
+            $checkIn = $breakOut = $breakIn = $checkOut = '';
+
+            foreach ($logs as $log) {
+                $time24 = substr($log->log_time, 0, 5);
+                $timeObj = Carbon::createFromFormat('H:i', $time24);
+                $hour = (int)$timeObj->format('H');
+                $time12 = $timeObj->format('g:i');
+
+                if ($hour >= 5 && $hour <= 11) {
+                    $checkIn = $time12;
+                } elseif ($hour == 12) {
+                    if (empty($breakOut)) {
+                        $breakOut = $time12;
+                    } else {
+                        $breakIn = $time12;
+                    }
+                } elseif ($hour >= 13 && $hour <= 21) {
+                    $checkOut = $time12;
+                }
+            }
+
+            // Fill first table
+            $templateProcessor->setValue("n#{$day}", $day);
+            $templateProcessor->setValue("d#{$day}", $weekday);
+            $templateProcessor->setValue("c_in#{$day}", $checkIn);
+            $templateProcessor->setValue("b_out#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in#{$day}", $breakIn);
+            $templateProcessor->setValue("c_out#{$day}", $checkOut);
+
+            // Fill second table
+            $templateProcessor->setValue("2#{$day}", $day);
+            $templateProcessor->setValue("l#{$day}", $weekday);
+            $templateProcessor->setValue("c_in2#{$day}", $checkIn);
+            $templateProcessor->setValue("b_ou2#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in2#{$day}", $breakIn);
+            $templateProcessor->setValue("c_ou2#{$day}", $checkOut);
+        }
+
+        // ✅ Save temporary DOCX file
+        $outputDocx = storage_path("app/public/DTR_{$employee}_{$month}.docx");
+        $templateProcessor->saveAs($outputDocx);
+
+        // ✅ Convert DOCX → PDF using LibreOffice headless (Windows)
+        $outputPdf = storage_path("app/public/DTR_{$employee}_{$month}.pdf");
+
+        $command = '"C:\Program Files\LibreOffice\program\soffice.exe" --headless --convert-to pdf "' . $outputDocx . '" --outdir "' . dirname($outputPdf) . '"';
+        exec($command);
+
+        // ✅ Delete the DOCX after conversion (optional but cleaner)
+        if (file_exists($outputDocx)) {
+            unlink($outputDocx);
+        }
+
+        // ✅ Return the generated PDF
+        return response()->download($outputPdf)->deleteFileAfterSend(true);
     }
 }
