@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Search, CalendarFold, Download, User, Clock, AlertCircle, Building2, Calendar1 } from 'lucide-react';
+import Footer from '@/Components/Footer';
 
 export default function DTRLanding({ records, employees, filters, availableDates }) {
     const today = new Date();
@@ -97,7 +98,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
                     </div>
                     <div className="text-right">
                         <p className="text-green-100">Daily Time Record (DTR) Portal</p>
-                        <p className="text-xs opacity-80">Secure • Official • DENR-Accredited</p>
+                        {/*<p className="text-xs opacity-80">Secure • Official • DENR-Accredited</p> */}
                     </div>
                 </div>
             </div>
@@ -343,12 +344,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
                     </div>
                 )}
             </div>
-
-            {/* Footer */}
-            <footer className="mt-16 text-center text-xs text-gray-500 pb-6">
-                <p>© {new Date().getFullYear()} Department of Environment and Natural Resources - PENRO Bulacan</p>
-                <p className="mt-1">For technical support, contact the MIS Unit.</p>
-            </footer>
+            <Footer/>
         </>
     );
 }
