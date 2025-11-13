@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { ClockIcon } from 'lucide-react';
+import { Clock, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DTRHistory from '@/Pages/Admin/Components/DtrHistory';
 
@@ -11,10 +11,8 @@ export default function DTRPage() {
   const [alreadySaved, setAlreadySaved] = useState(false);
   const [batchId, setBatchId] = useState(null);
   const [batchName, setBatchName] = useState('');
-  
   const [refreshSignal, setRefreshSignal] = useState(0);
 
-  // Generate DTR
   const generate = async e => {
     e.preventDefault();
     if (!batchName.trim()) {
@@ -28,13 +26,11 @@ export default function DTRPage() {
 
     try {
       const { data } = await axios.post('/generate', { logText, batchName });
-      
       setRecords(data.records);
       setAlreadySaved(data.alreadySaved);
       setBatchId(data.batchId);
 
       if (!data.alreadySaved) {
-        // Trigger refresh in DTRHistory
         setRefreshSignal(prev => prev + 1);
       }
     } catch (err) {
@@ -44,7 +40,6 @@ export default function DTRPage() {
     }
   };
 
-  // Reprocess a batch (passed to DTRHistory)
   const reprocess = async id => {
     try {
       const { data } = await axios.get(`/admin/dtr/batch/${id}/raw`);
@@ -57,73 +52,114 @@ export default function DTRPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-7xl mx-auto p-4 md:p-6 grid gap-6 lg:grid-cols-3">
-        {/* ==== LEFT: Form ==== */}
-        <section className="lg:col-span-2">
-          <h1 className="text-2xl font-bold mb-4">DTR Generator</h1>
+      <div className="max-w-7xl mx-auto p-4 md:p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-green-800 flex items-center gap-3">
+            <Upload className="w-8 h-8 text-green-600" />
+            DTR Log Generator
+          </h1>
+          <p className="text-gray-600 mt-1">Paste raw attendance logs to generate structured DTR data.</p>
+        </div>
 
-          <form onSubmit={generate} className="space-y-4">
-            {/* Batch Name */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Batch Name</label>
-              <input
-                type="text"
-                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter batch name"
-                value={batchName}
-                onChange={e => setBatchName(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Log Textarea */}
-            <div>
-              <textarea
-                className="w-full p-3 border rounded-md font-mono text-sm h-48 md:h-64 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Paste attendance logs here..."
-                value={logText}
-                onChange={e => setLogText(e.target.value)}
-                required
-              />
-              {alreadySaved && batchId && (
-                <p className="mt-2 text-sm text-amber-600 flex items-center">
-                  <ClockIcon className="w-4 h-4 mr-1" />
-                  Already uploaded (batch #{batchId})
-                </p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-md disabled:opacity-60"
-            >
-              {loading ? 'Processing…' : 'Generate DTR'}
-            </button>
-          </form>
-
-          {/* ==== Parsed result ==== */}
-          {records && (
-            <div className="mt-8 overflow-x-auto">
-              {Object.entries(records).map(([name, months]) => (
-                <div key={name} className="border rounded-lg p-4 mb-4 bg-white shadow-sm">
-                  <h2 className="text-lg font-semibold text-blue-700">{name}</h2>
-                  {Object.entries(months).map(([monthKey, monthGroup]) => (
-                    <div key={monthKey} className="mt-3">
-                      <h3 className="font-medium">{monthKey}</h3>
-                      <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
-                        {JSON.stringify(monthGroup, null, 2)}
-                      </pre>
-                    </div>
-                  ))}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* ==== LEFT: Form ==== */}
+          <section className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 p-5 md:p-6">
+              <form onSubmit={generate} className="space-y-5">
+                {/* Batch Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Batch Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                    placeholder="e.g., Biometric Logs - November 2025"
+                    value={batchName}
+                    onChange={e => setBatchName(e.target.value)}
+                    required
+                  />
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
 
-        {/* ==== RIGHT: Upload History ==== */}
-        <DTRHistory onReprocess={reprocess} refreshSignal={refreshSignal} />
+                {/* Log Textarea */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Attendance Log Data <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    className="w-full p-4 border border-gray-300 rounded-lg font-mono text-sm h-64 md:h-80 focus:ring-2 focus:ring-green-500 focus:border-transparent transition resize-none"
+                    placeholder="Paste raw biometric logs here (one entry per line)..."
+                    value={logText}
+                    onChange={e => setLogText(e.target.value)}
+                    required
+                  />
+                  
+                  {alreadySaved && batchId && (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-700">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        Already uploaded as <strong>Batch #{batchId}</strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-3 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed shadow-md"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Generate DTR
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* ==== Parsed Results ==== */}
+            {records && (
+              <div className="mt-6 space-y-4">
+                <h2 className="text-xl font-bold text-green-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  Parsed DTR Records
+                </h2>
+
+                {Object.entries(records).map(([name, months]) => (
+                  <div key={name} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4">
+                      <h3 className="font-semibold text-lg">{name}</h3>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {Object.entries(months).map(([monthKey, monthGroup]) => (
+                        <details key={monthKey} className="group">
+                          <summary className="cursor-pointer font-medium text-green-700 hover:text-green-800 flex items-center justify-between py-2 border-b border-gray-200">
+                            <span>{monthKey}</span>
+                            <span className="text-xs text-gray-500 group-open:rotate-180 transition-transform">▼</span>
+                          </summary>
+                          <pre className="mt-2 p-3 bg-gray-50 rounded text-xs overflow-x-auto font-mono text-gray-700">
+                            {JSON.stringify(monthGroup, null, 2)}
+                          </pre>
+                        </details>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ==== RIGHT: History ==== */}
+          <DTRHistory onReprocess={reprocess} refreshSignal={refreshSignal} />
+        </div>
       </div>
     </AuthenticatedLayout>
   );
