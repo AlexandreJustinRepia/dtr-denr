@@ -20,6 +20,11 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::get('/dashboard', fn() => Inertia::render('Dashboard'))->name('dashboard');
     Route::get('/admin/dtr', [DTRController::class, 'dtr'])->name('dtr');
     Route::post('/generate', [DTRController::class, 'generate'])->name('admin.dtr.generate');
+
+    Route::get('/admin/dtr/history', [DTRController::class, 'history'])
+        ->name('admin.dtr.history');
+    Route::get('/admin/dtr/batch/{id}/raw', [DTRController::class, 'batchRaw'])
+        ->name('admin.dtr.batch.raw');
 });
 
 

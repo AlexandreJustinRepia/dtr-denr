@@ -8,6 +8,8 @@ use DateTime;
 use App\Models\DTRRecord;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
+use App\Models\DTRBatch;
+use Illuminate\Support\Facades\Hash;
 
 class DTRController extends Controller
 {
@@ -21,57 +23,65 @@ class DTRController extends Controller
     public function generate(Request $request)
     {
         $logText = $request->input('logText', '');
+        $batchName = $request->input('batchName', '');
+
         if (!$logText) {
             return response()->json(['error' => 'No log provided'], 400);
         }
 
+        if (!$batchName) {
+            return response()->json(['error' => 'Batch name is required'], 400);
+        }
+
+        // ---- 1. Duplicate check -------------------------------------------------
+        $hash = hash('sha256', $logText);
+        $existing = DTRBatch::where('hash', $hash)->first();
+
+        // ---- 2. Parse log text --------------------------------------------------
+        $parsed = $this->parseLogText($logText);
+
+        // ---- 3. Save batch (only if new) ----------------------------------------
+        if (!$existing) {
+            $batch = DTRBatch::create([
+                'batch_name'   => $batchName,  // Save batch name
+                'raw_log'      => $logText,
+                'hash'         => $hash,
+                'record_count' => $parsed['totalRecords'],
+            ]);
+            $batchId = $batch->id;
+        } else {
+            $batchId = $existing->id;
+        }
+
+        // ---- 4. Return ------------------------------------------------------------
+        return response()->json([
+            'records'      => $parsed['records'],
+            'alreadySaved' => (bool) $existing,
+            'batchId'      => $batchId,
+            'message'      => $existing
+                ? 'This log was already processed.'
+                : 'DTR records have been successfully saved to the database.',
+        ]);
+    }
+
+    /** Private method: parse log text */
+    private function parseLogText(string $logText): array
+    {
         // Extended list of Filipino first/last names (expand as needed)
         $nameDictionary = [
-            // Corrected / Fixed Names
-            'EMMANUEL','MACALINAO',
-            'ARBIE','TALUCOD','ESTRELLA',
-            'JOMAR','PIMENTEL',
-            'KRIZ-TATUM OLAES LAPPAY', // keep as single name, no spacing
-            'KATRINE','NAVAJA',
-            'MARIA','KATRINA','MALLILLIN',
-            'MARICRIS','PEREZ',
-            'MARINEL','MACARANAS',
-            'MARY','JANE','TENORIO',
-            'MARY','JOY','MENGULLO',
-            'MARK','JEFFERSON','CALUAG',
-            'ROHN','JERICHO','DAYAP',
-            'ROLANDO','RIVERA',
-            'RONA','MAY','MARIN',
-            'STEPHANIE','MAE','VALIENTE',
-            'SHARA','MAE','BERMUDEZ',
-            'RAMONA','ALLAUIGAN','DIANCIN',
-            'ERA','BABBLE','CASTRO',
-            'OFELIA','SARDENIA','CONAG',
-            'REIZLE','GACUSAN',
-            'RENZ','ESTRELLA',
-
-            // Original Names
-            'VIVIANNE','VISPERAS','CUNAN',
-            'CYNTHIA','MANANGU','SAGUM',
-            'KENNETH','RODRIGUEZ','ROL',
-            'ARMANDO','GUIAO','SAWIT',
-            'BHEBLIA','JOY','PASAGDAN',
-            'JETHRO','TORRES','CERVANTES',
-            'AURORA','CRISTOBAL','AQUINO',
-            'JOSE','WILFREDO','LUCAS',
-            'DANIEL','RABARA','DOMINGO',
-            'DAN','SAYTONO',
-            'JESSICA','GARCIA',
-            'WINLOVE','BERNALES',
-            'DENNIS','HERNANDEZ','LOPEZ',
-            'CHRISTIAN','O.','SANTOS',
-            'EDMAR','A.','GALLARDO',
-            'MICHAEL','ESPOIR','JOVEN',
-            'DONNA','BRIONES',
-            'PERLITA','CAPARAS',
-            'EDUARDO','MANLUNAS',
-            'ALEXANDRE','JUSTIN','REPIA',
-            'JAN','MICHAEL','CAMPUED'
+            'EMMANUEL','MACALINAO','ARBIE','TALUCOD','ESTRELLA','JOMAR','PIMENTEL',
+            'KRIZ-TATUM OLAES LAPPAY','KATRINE','NAVAJA','MARIA','KATRINA','MALLILLIN',
+            'MARICRIS','PEREZ','MARINEL','MACARANAS','MARY','JANE','TENORIO','MARY','JOY','MENGULLO',
+            'MARK','JEFFERSON','CALUAG','ROHN','JERICHO','DAYAP','ROLANDO','RIVERA',
+            'RONA','MAY','MARIN','STEPHANIE','MAE','VALIENTE','SHARA','MAE','BERMUDEZ',
+            'RAMONA','ALLAUIGAN','DIANCIN','ERA','BABBLE','CASTRO','OFELIA','SARDENIA','CONAG',
+            'REIZLE','GACUSAN','RENZ','ESTRELLA','VIVIANNE','VISPERAS','CUNAN','CYNTHIA','MANANGU','SAGUM',
+            'KENNETH','RODRIGUEZ','ROL','ARMANDO','GUIAO','SAWIT','BHEBLIA','JOY','PASAGDAN',
+            'JETHRO','TORRES','CERVANTES','AURORA','CRISTOBAL','AQUINO','JOSE','WILFREDO','LUCAS',
+            'DANIEL','RABARA','DOMINGO','DAN','SAYTONO','JESSICA','GARCIA','WINLOVE','BERNALES',
+            'DENNIS','HERNANDEZ','LOPEZ','CHRISTIAN','O.','SANTOS','EDMAR','A.','GALLARDO',
+            'MICHAEL','ESPOIR','JOVEN','DONNA','BRIONES','PERLITA','CAPARAS','EDUARDO','MANLUNAS',
+            'ALEXANDRE','JUSTIN','REPIA','JAN','MICHAEL','CAMPUED'
         ];
 
         $exceptions = [
@@ -92,22 +102,20 @@ class DTRController extends Controller
             $rawName = preg_replace('/[^a-zA-Z\.\- ]/', '', $rawName);
             $rawName = strtoupper($rawName);
 
-            // 🔹 Check for exceptions
+            // Check for exceptions
             foreach ($exceptions as $wrong => $correct) {
                 if (str_replace(' ', '', $rawName) === str_replace(' ', '', strtoupper($wrong))) {
-                    return $correct; // return corrected name
+                    return $correct;
                 }
             }
 
-            // 🔹 Otherwise, process normally with dictionary
+            // Process normally
             $formatted = [];
             $remaining = $rawName;
-
             usort($nameDictionary, fn($a,$b) => strlen($b) - strlen($a));
 
             while ($remaining) {
                 $matched = false;
-
                 foreach ($nameDictionary as $word) {
                     if (str_starts_with($remaining, $word)) {
                         $formatted[] = $word;
@@ -121,22 +129,19 @@ class DTRController extends Controller
                     if (preg_match('/^([A-Z]\.?)(.*)$/', $remaining, $m)) {
                         $formatted[] = $m[1];
                         $remaining = $m[2] ?? '';
+                    } elseif (preg_match('/^([A-Z]{2,})(.*)$/', $remaining, $m)) {
+                        $formatted[] = $m[1];
+                        $remaining = $m[2] ?? '';
                     } else {
-                        if (preg_match('/^([A-Z]{2,})(.*)$/', $remaining, $m)) {
-                            $formatted[] = $m[1];
-                            $remaining = $m[2] ?? '';
-                        } else {
-                            $formatted[] = $remaining[0];
-                            $remaining = substr($remaining, 1);
-                        }
+                        $formatted[] = $remaining[0];
+                        $remaining = substr($remaining, 1);
                     }
                 }
             }
 
-            return implode(' ', $formatted); // ALL CAPS, spaced
+            return implode(' ', $formatted);
         };
 
-        // 🔸 Parse raw text line-by-line
         $lines = preg_split('/\r?\n/', trim($logText));
         $records = [];
 
@@ -144,12 +149,11 @@ class DTRController extends Controller
             $line = trim($line);
             if ($line === '') continue;
 
-            // Example: "danielrabaradomingo 10/01/2025 12:26:22 PM"
             if (!preg_match('/^(.*?)\s+(\d{2}\/\d{2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
                 continue;
             }
 
-            $name = $formatName($mLine[1]); // Auto-format name properly
+            $name = $formatName($mLine[1]);
             $datetime = trim($mLine[2]);
 
             if (!preg_match('/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
@@ -176,7 +180,7 @@ class DTRController extends Controller
             ];
         }
 
-        // 🔸 Sort logs for each employee and date
+        // Sort logs for each employee and date
         foreach ($records as &$person) {
             foreach ($person as &$monthGroup) {
                 foreach ($monthGroup as &$rec) {
@@ -185,7 +189,7 @@ class DTRController extends Controller
             }
         }
 
-        // 🔹 Save parsed records into the database
+        // Save parsed records into the database
         foreach ($records as $name => $months) {
             foreach ($months as $month => $days) {
                 foreach ($days as $date => $rec) {
@@ -200,10 +204,34 @@ class DTRController extends Controller
             }
         }
 
-        return response()->json([
-            'records' => $records,
-            'message' => 'DTR records have been successfully saved to the database.'
-        ]);
+        // Count total records
+        $total = 0;
+        foreach ($records as $person) {
+            foreach ($person as $month) {
+                foreach ($month as $day) {
+                    $total += count($day['logs']);
+                }
+            }
+        }
+
+        return [
+            'records'      => $records,
+            'totalRecords' => $total,
+        ];
+    }
+
+    public function history()
+    {
+        $batches = DTRBatch::orderByDesc('uploaded_at')
+            ->paginate(10);
+
+        return response()->json($batches);
+    }
+
+    public function batchRaw($id)
+    {
+        $batch = DTRBatch::findOrFail($id);
+        return response()->json(['raw_log' => $batch->raw_log]);
     }
 
 
