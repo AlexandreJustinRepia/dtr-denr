@@ -1,7 +1,9 @@
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
-import { Search, CalendarFold, Download, User, Clock, AlertCircle, Building2, Calendar1 } from 'lucide-react';
+import { Download, User, Clock, AlertCircle, Building2 } from 'lucide-react';
 import Footer from '@/Components/Footer';
+import SearchFilters from './Components/SearchFilter';
+import EmployeeList from './Components/EmployeeList';
 
 export default function DTRLanding({ records, employees, filters, availableDates }) {
     const today = new Date();
@@ -26,11 +28,15 @@ export default function DTRLanding({ records, employees, filters, availableDates
             setLoading(false);
             return;
         }
-        setLoading(true);
+
         router.get(
             route('dtr.view'),
             { search: selected ?? searchValue, month: monthValue, year: yearValue },
-            { preserveState: true, onFinish: () => setLoading(false) }
+            {
+                preserveState: true,
+                onStart: () => setLoading(true), // <-- optional, double safety
+                onFinish: () => setLoading(false)
+            }
         );
     };
 
@@ -47,11 +53,9 @@ export default function DTRLanding({ records, employees, filters, availableDates
         return { inTime, breakOut, breakIn, outTime };
     };
 
-    const cutoffTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 59);
-    const isDTRAvailable = today >= cutoffTime;
-
     const handleSearch = (selected = null) => {
         if (!search.trim() && !selected) return;
+        setLoading(true);
         performRequest({ searchValue: search, monthValue: filterMonth, yearValue: filterYear, selected });
     };
 
@@ -104,93 +108,22 @@ export default function DTRLanding({ records, employees, filters, availableDates
             </div>
 
             <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-                {/* Search & Filters */}
-                <div className="bg-white rounded-xl shadow-md p-5 md:p-6 mb-6 border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                        {/* Search Input */}
-                        <div className="lg:col-span-5 relative">
-                            <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search employee name..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                onKeyDown={handleKeyDown}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
-                            />
-                        </div>
-
-                        {/* Month */}
-                        <div className="lg:col-span-2">
-                            <div className="relative">
-                                <CalendarFold className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                                <select
-                                    value={filterMonth}
-                                    onChange={handleFilterChange(setFilterMonth, 'month')}
-                                    className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
-                                    disabled={!availableDates || availableDates.length === 0} // disable if no data
-                                >
-                                    {availableDates && availableDates.length > 0 ? (
-                                        availableDates
-                                            .map(d => d.month)
-                                            .filter((v, i, a) => a.indexOf(v) === i) // unique months
-                                            .map((m) => (
-                                                <option key={m} value={m}>
-                                                    {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
-                                                </option>
-                                            ))
-                                    ) : (
-                                        <option value="" disabled>
-                                            No records available
-                                        </option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Year */}
-                        <div className="lg:col-span-2">
-                            <div className="relative">
-                                <Calendar1 className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                                <select
-                                    value={filterYear}
-                                    onChange={handleFilterChange(setFilterYear, 'year')}
-                                    className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
-                                    disabled={!availableDates || availableDates.length === 0} // disable if no data
-                                >
-                                    {availableDates && availableDates.length > 0 ? (
-                                        availableDates
-                                            .map(d => d.year)
-                                            .filter((v, i, a) => a.indexOf(v) === i) // unique years
-                                            .map((y) => (
-                                                <option key={y} value={y}>{y}</option>
-                                            ))
-                                    ) : (
-                                        <option value="" disabled>
-                                            No records available
-                                        </option>
-                                    )}
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Buttons */}
-                        <div className="lg:col-span-3 flex gap-2">
-                            <button
-                                onClick={handleSearch}
-                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-5 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
-                            >
-                                <Search className="w-4 h-4" /> Search
-                            </button>
-                            <button
-                                onClick={handleReset}
-                                className="px-5 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition shadow-sm"
-                            >
-                                Reset
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                {/* Search Filter */}
+                <SearchFilters
+                    search={search}
+                    setSearch={setSearch}
+                    filterMonth={filterMonth}
+                    setFilterMonth={setFilterMonth}
+                    filterYear={filterYear}
+                    setFilterYear={setFilterYear}
+                    availableDates={availableDates}
+                    loading={loading}
+                    handleKeyDown={handleKeyDown}
+                    handleSearch={handleSearch}
+                    handleReset={handleReset}
+                    selectedEmployee={selectedEmployee}
+                    performRequest={performRequest}
+                />
 
                 {/* Loading State */}
                 {loading && (
@@ -200,14 +133,12 @@ export default function DTRLanding({ records, employees, filters, availableDates
                 )}
 
                 {/* DTR Availability Notice */}
-                {!isDTRAvailable && !loading && (
-                    <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg mb-6 flex items-center gap-3">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                        <p className="text-sm">
-                            <strong>DTR Download Unavailable:</strong> DTRs are generated after 12:59 PM daily.
-                        </p>
-                    </div>
-                )}
+                <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg mb-6 flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <p className="text-sm">
+                        DTRs are uploaded after <strong>12:59 PM</strong> on the <strong>last workday of each month</strong>.
+                    </p>
+                </div>
 
                 {/* No Search Prompt */}
                 {!hasSearched && !loading && (
@@ -219,60 +150,17 @@ export default function DTRLanding({ records, employees, filters, availableDates
 
                 {/* Employee List */}
                 {hasSearched && employeeList.length > 0 && (
-                    <>
-                        <div className="mb-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                                <User className="w-5 h-5 text-green-600" /> Select Employee
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                {employeeList.map((emp) => (
-                                    <button
-                                        key={emp.employee_name}
-                                        onClick={() => {
-                                            setSelectedEmployee(emp.employee_name);
-                                            handleSearch(emp.employee_name);
-                                        }}
-                                        className={`p-4 rounded-lg border-2 text-left transition-all shadow-sm hover:shadow-md ${
-                                            selectedEmployee === emp.employee_name
-                                                ? 'border-green-600 bg-green-50 text-green-800 font-medium'
-                                                : 'border-gray-200 bg-white hover:border-green-300'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                            <span className="truncate">{emp.employee_name}</span>
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Pagination */}
-                        {employees.last_page > 1 && (
-                            <div className="flex justify-center gap-2 mb-8 flex-wrap">
-                                {Array.from({ length: employees.last_page }, (_, i) => i + 1).map((page) => (
-                                    <button
-                                        key={page}
-                                        onClick={() => {
-                                            setSelectedEmployee(null);
-                                            router.get(
-                                                route('dtr.view'),
-                                                { page, search, month: filterMonth, year: filterYear },
-                                                { preserveState: true }
-                                            );
-                                        }}
-                                        className={`px-4 py-2 rounded-lg font-medium transition ${
-                                            employees.current_page === page
-                                                ? 'bg-green-600 text-white'
-                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                                        }`}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </>
+                    <EmployeeList
+                        employeeList={employeeList}
+                        selectedEmployee={selectedEmployee}
+                        setSelectedEmployee={setSelectedEmployee}
+                        handleSearch={handleSearch}
+                        pagination={employees}
+                        search={search}
+                        filterMonth={filterMonth}
+                        filterYear={filterYear}
+                        router={router}
+                    />
                 )}
 
                 {/* DTR Details */}
@@ -296,12 +184,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
                                             </h3>
                                             <a
                                                 href={`/generate-dtr/${encodeURIComponent(selectedEmployee)}/${month}`}
-                                                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition ${
-                                                    isDTRAvailable
-                                                        ? 'bg-green-600 hover:bg-green-700 text-white shadow-md'
-                                                        : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                                                }`}
-                                                {...(!isDTRAvailable && { onClick: (e) => e.preventDefault() })}
+                                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition bg-green-600 hover:bg-green-700 text-white shadow-md"
                                             >
                                                 <Download className="w-4 h-4" /> Download PDF
                                             </a>
@@ -327,10 +210,10 @@ export default function DTRLanding({ records, employees, filters, availableDates
                                                             <tr key={date} className="hover:bg-green-50 transition">
                                                                 <td className="px-4 py-3 font-medium text-gray-900">{dayNum}</td>
                                                                 <td className="px-4 py-3 text-gray-600">{data.weekday}</td>
-                                                                <td className="px-4 py-3 text-center font-mono text-green-700">{inTime || '-'}</td>
-                                                                <td className="px-4 py-3 text-center font-mono text-orange-600">{breakOut || '-'}</td>
-                                                                <td className="px-4 py-3 text-center font-mono text-orange-600">{breakIn || '-'}</td>
-                                                                <td className="px-4 py-3 text-center font-mono text-red-600">{outTime || '-'}</td>
+                                                                <td className="px-4 py-3 text-center font-mono text-green-700">{inTime || ''}</td>
+                                                                <td className="px-4 py-3 text-center font-mono text-orange-600">{breakOut || ''}</td>
+                                                                <td className="px-4 py-3 text-center font-mono text-orange-600">{breakIn || ''}</td>
+                                                                <td className="px-4 py-3 text-center font-mono text-red-600">{outTime || ''}</td>
                                                             </tr>
                                                         );
                                                     })}
