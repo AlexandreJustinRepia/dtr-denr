@@ -25,7 +25,6 @@ export default function EmployeeList({
                             key={emp.employee_name}
                             onClick={() => {
                                 setSelectedEmployee(emp.employee_name);
-                                handleSearch(emp.employee_name);
                             }}
                             className={`p-4 rounded-lg border-2 text-left transition-all shadow-sm hover:shadow-md ${
                                 selectedEmployee === emp.employee_name

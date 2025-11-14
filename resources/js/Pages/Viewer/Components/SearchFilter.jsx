@@ -18,12 +18,10 @@ export default function SearchFilters({
         const newValue = Number(e.target.value);
         setter(newValue);
 
-        // Always perform request when switching month/year
         performRequest({
-            searchValue: search,
+            searchValue: type === 'month' || type === 'year' ? search : e.target.value,
             monthValue: type === 'month' ? newValue : filterMonth,
             yearValue: type === 'year' ? newValue : filterYear,
-            selected: selectedEmployee,
         });
     };
 
