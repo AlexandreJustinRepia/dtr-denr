@@ -8,7 +8,6 @@ export default function SearchFilters({
     filterYear,
     setFilterYear,
     availableDates,
-    loading,
     handleKeyDown,
     handleSearch,
     handleReset,
@@ -17,21 +16,21 @@ export default function SearchFilters({
 }) {
     const handleFilterChange = (setter, type) => (e) => {
         const newValue = Number(e.target.value);
-        const newMonth = type === 'month' ? newValue : filterMonth;
-        const newYear = type === 'year' ? newValue : filterYear;
         setter(newValue);
 
-        if (selectedEmployee) {
-            performRequest({ searchValue: search, monthValue: newMonth, yearValue: newYear, selected: selectedEmployee });
-        } else if (search.trim()) {
-            performRequest({ searchValue: search, monthValue: newMonth, yearValue: newYear });
-        }
+        // Always perform request when switching month/year
+        performRequest({
+            searchValue: search,
+            monthValue: type === 'month' ? newValue : filterMonth,
+            yearValue: type === 'year' ? newValue : filterYear,
+            selected: selectedEmployee,
+        });
     };
 
     return (
         <div className="bg-white rounded-xl shadow-md p-5 md:p-6 mb-6 border border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                
+
                 {/* Search Input */}
                 <div className="lg:col-span-5 relative">
                     <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
@@ -56,7 +55,7 @@ export default function SearchFilters({
                             disabled={!availableDates || availableDates.length === 0}
                         >
                             {availableDates?.length ? (
-                                [...new Set(availableDates.map((d) => d.month))].map((m) => (
+                                [...new Set(availableDates.map(d => d.month))].map(m => (
                                     <option key={m} value={m}>
                                         {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
                                     </option>
@@ -79,7 +78,7 @@ export default function SearchFilters({
                             disabled={!availableDates || availableDates.length === 0}
                         >
                             {availableDates?.length ? (
-                                [...new Set(availableDates.map((d) => d.year))].map((y) => (
+                                [...new Set(availableDates.map(d => d.year))].map(y => (
                                     <option key={y} value={y}>{y}</option>
                                 ))
                             ) : (

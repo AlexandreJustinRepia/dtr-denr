@@ -239,8 +239,20 @@ class DTRController extends Controller
     public function view()
     {
         $search = request('search', '');
+        $monthFilter = request('month');
+        $yearFilter = request('year');
 
-        // Fetch distinct employee names
+        // Get available months and years
+        $availableDates = DTRRecord::selectRaw('DISTINCT YEAR(log_date) as year, MONTH(log_date) as month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get();
+
+        // Default to first available month/year if not provided
+        $monthFilter = $monthFilter ?: ($availableDates->first()?->month ?? date('n'));
+        $yearFilter = $yearFilter ?: ($availableDates->first()?->year ?? date('Y'));
+
+        // Fetch distinct employee names (with search)
         $employeesQuery = DTRRecord::select('employee_name')
             ->distinct()
             ->when($search, fn($q) => $q->where('employee_name', 'like', "%{$search}%"))
@@ -251,30 +263,21 @@ class DTRController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        // Get available months and years from DB
-        $availableDates = DTRRecord::selectRaw('DISTINCT YEAR(log_date) as year, MONTH(log_date) as month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
-
-        // If no filter sent, default to the first available month/year
-        $monthFilter = request('month') ?: ($availableDates->first()?->month ?? date('n'));
-        $yearFilter = request('year') ?: ($availableDates->first()?->year ?? date('Y'));
-
-        // Build records for the current page employees
+        // Build DTR records for employees in the current page
         $records = collect($employees->items())
             ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter) {
-                $months = DTRRecord::where('employee_name', $emp->employee_name)
+                $monthGroup = DTRRecord::where('employee_name', $emp->employee_name)
+                    ->whereYear('log_date', $yearFilter)
+                    ->whereMonth('log_date', $monthFilter)
                     ->orderBy('log_date')
                     ->orderBy('log_time')
                     ->get()
                     ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
 
                 $result = [];
-                foreach ($months as $monthKey => $monthGroup) {
+                foreach ($monthGroup as $monthKey => $daysGroup) {
                     $year = (int) substr($monthKey, 0, 4);
                     $month = (int) substr($monthKey, 5, 2);
-                    if ($year !== (int) $yearFilter || $month !== (int) $monthFilter) continue;
 
                     $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
                     $structured = [];
@@ -283,7 +286,10 @@ class DTRController extends Controller
                         $dateStr = $date->format('Y-m-d');
                         $weekday = $date->format('D');
 
-                        $logs = $monthGroup->where('log_date', $dateStr)->map(fn($log) => ['time' => $log->log_time])->values()->toArray();
+                        $logs = $daysGroup->where('log_date', $dateStr)
+                            ->map(fn($log) => ['time' => $log->log_time])
+                            ->values()
+                            ->toArray();
 
                         $structured[$dateStr] = [
                             'weekday' => $weekday,
@@ -306,9 +312,10 @@ class DTRController extends Controller
                 'month' => (int) $monthFilter,
                 'year' => (int) $yearFilter,
             ],
-            'availableDates' => $availableDates, // pass to the frontend
+            'availableDates' => $availableDates,
         ]);
     }
+
 
 
 
