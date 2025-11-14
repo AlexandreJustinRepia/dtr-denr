@@ -18,11 +18,22 @@ export default function SearchFilters({
         const newValue = Number(e.target.value);
         setter(newValue);
 
-        performRequest({
-            searchValue: type === 'month' || type === 'year' ? search : e.target.value,
-            monthValue: type === 'month' ? newValue : filterMonth,
-            yearValue: type === 'year' ? newValue : filterYear,
-        });
+        // Only update DTR if an employee is selected
+        if (selectedEmployee) {
+            performRequest({
+                searchValue: search,
+                monthValue: type === 'month' ? newValue : filterMonth,
+                yearValue: type === 'year' ? newValue : filterYear,
+                updateList: false, // <-- prevent refreshing employee list
+            });
+        } else {
+            performRequest({
+                searchValue: search,
+                monthValue: type === 'month' ? newValue : filterMonth,
+                yearValue: type === 'year' ? newValue : filterYear,
+                updateList: true, // <-- normal search when no employee selected
+            });
+        }
     };
 
     return (

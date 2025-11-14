@@ -282,6 +282,8 @@ class DTRController extends Controller
                     $year = (int) substr($monthKey, 0, 4);
                     $month = (int) substr($monthKey, 5, 2);
 
+                    $monthName = Carbon::create($year, $month, 1)->format('F Y'); // <-- New
+
                     $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
                     $structured = [];
 
@@ -301,7 +303,7 @@ class DTRController extends Controller
                         ];
                     }
 
-                    $result[$monthKey] = $structured;
+                    $result[$monthName] = $structured; // <-- Use human-readable month
                 }
 
                 return [$emp->employee_name => $result];

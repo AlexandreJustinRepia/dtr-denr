@@ -84,10 +84,12 @@ export default function DTRLanding({ records, employees, filters, availableDates
         }
     }, [selectedEmployee]);
 
-    const performRequest = ({ searchValue, monthValue, yearValue }) => {
-        setLoading(true);
-        setDtrLoading(true);
-        setSelectedEmployee(null);
+    const performRequest = ({ searchValue, monthValue, yearValue, updateList = true }) => {
+        if (updateList) {
+            setLoading(true); // show loader for list + DTR
+        } else {
+            setDtrLoading(true); // show loader only for DTR
+        }
 
         router.get(
             route('dtr.view'),
@@ -96,8 +98,8 @@ export default function DTRLanding({ records, employees, filters, availableDates
                 preserveState: true,
                 preserveScroll: true,
                 onFinish: () => {
-                    setLoading(false);
-                    setDtrLoading(false);
+                    if (updateList) setLoading(false);
+                    if (!updateList) setDtrLoading(false);
                 },
             }
         );
