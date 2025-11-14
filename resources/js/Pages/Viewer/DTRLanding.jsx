@@ -11,7 +11,10 @@ export default function DTRLanding({ records, employees, filters, availableDates
     const today = new Date();
     const currentMonth = filters?.month || today.getMonth() + 1;
     const currentYear = filters?.year || today.getFullYear();
-    const employeeList = Array.isArray(employees.data) ? employees.data : [];
+    const employeeList = (Array.isArray(employees.data) ? employees.data : []).filter(emp => {
+        const empRecords = records[emp.employee_name] || {};
+        return Object.keys(empRecords).length > 0;
+    });
 
     const [search, setSearch] = useState(filters?.search || '');
     const [filterMonth, setFilterMonth] = useState(currentMonth);
