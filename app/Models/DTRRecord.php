@@ -16,5 +16,6 @@ class DTRRecord extends Model
         'log_date',
         'log_time',
         'log_type',
+        'status'
     ];
 }

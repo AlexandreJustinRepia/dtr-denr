@@ -40,7 +40,7 @@ class DTRController extends Controller
         $existing = DTRBatch::where('hash', $hash)->first();
 
         // ---- 2. Parse log text --------------------------------------------------
-        $parsed = $this->parseLogText($logText);
+        $parsed = $this->parseLogTextSample($logText);
 
         // ---- 3. Save batch (only if new) ----------------------------------------
         if (!$existing) {
@@ -196,6 +196,164 @@ class DTRController extends Controller
                             'employee_name' => $name,
                             'log_date' => $date,
                             'log_time' => $log['time24'],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Count total records
+        $total = 0;
+        foreach ($records as $person) {
+            foreach ($person as $month) {
+                foreach ($month as $day) {
+                    $total += count($day['logs']);
+                }
+            }
+        }
+
+        return [
+            'records'      => $records,
+            'totalRecords' => $total,
+        ];
+    }
+
+    private function parseLogTextSample(string $logText): array
+    {
+        $exceptions = [
+            'EMMANUELMACALINAO' => 'EMMANUEL MACALINAO',
+            'ARBIE TALUCOD ESTRELLA' => 'ARBIE TALUCOD ESTRELLA',
+            'jomar pimentel' => 'JOMAR PIMENTEL',
+            'katrine navaja' => 'KATRINE NAVAJA',
+            'maria katrina mallillin' => 'MARIA KATRINA MALLILLIN',
+            'MARICRISPEREZ' => 'MARICRIS PEREZ',
+            'MARINEL MACARANAS' => 'MARINEL MACARANAS',
+            'MARY JANE TENORIO' => 'MARY JANE TENORIO',
+            'maryjoymengullo' => 'MARY JOY MENGULLO',
+            'markjeffersoncaluag' => 'MARK JEFFERSON CALUAG',
+            'rohnjerichodayap' => 'ROHN JERICHO DAYAP',
+            'Rolando Rivera' => 'ROLANDO RIVERA',
+            'RONA MAY MARIN' => 'RONA MAY MARIN',
+            'STEPHANIE MAE VALIENTE' => 'STEPHANIE MAE VALIENTE',
+            'shara mae bermudez' => 'SHARA MAE BERMUDEZ',
+            'RAMONA ALLAUIGAN DIANCI' => 'RAMONA ALLAUIGAN DIANCIN',
+            'ERABABBLECASTRO' => 'ERA BABBLE CASTRO',
+            'OFELIA SARDENIA CONAG' => 'OFELIA SARDENIA CONAG',
+            'REIZLE GACUSAN' => 'REIZLE GACUSAN',
+            'RenzEstrella' => 'RENZ ESTRELLA',
+            'VIVIANNE VISPERAS CUNAN' => 'VIVIANNE VISPERAS CUNAN',
+            'CYNTHIA  MANANGU SAGUM' => 'CYNTHIA  MANANGU SAGUM',
+            'KENNETH RODRIGUEZ ROL' => 'KENNETH RODRIGUEZ ROL',
+            'ARMANDO GUIAO SAWIT' => 'ARMANDO GUIAO SAWIT',
+            'BHEBLIA JOY PASAGDAN' => 'BHEBLIA JOY PASAGDAN',
+            'JETHRO TORRES CERVANTES' => 'JETHRO TORRES CERVANTES',
+            'AURORA CRISTOBAL AQUINO' => 'AURORA CRISTOBAL AQUINO',
+            'Jose Wilfredo Lucas' => 'JOSE WILFREDO LUCAS',
+            'danielrabaradomingo' => 'DANIEL RABARA DOMINGO',
+            'DAN SAYTONO' => 'DAN SAYTONO',
+            'Jessica Garcia' => 'JESSICA GARCIA',
+            'WINLOVE BERNALES' => 'WINLOVE BERNALES',
+            'DENNIS HERNANDEZ LOPEZ' => 'DENNIS HERNANDEZ LOPEZ',
+            'christian o. santos' => 'CHRISTIAN O. SANTOS',
+            'EDMAR A  GALLARDO' => 'EDMAR A. GALLARDO',
+            'michael espoir joven' =>'MICHAEL ESPOIR JOVEN',
+            'donna briones' => 'DONNA BRIONES',
+            'perlita caparas' => 'PERLITA CAPARAS',
+            'EDUARDO MANLUNAS' => 'EDUARDO MANLUNAS',
+            'JAN MICHAEL CAMPUED' => 'JAN MICHAEL CAMPUED',
+            'Alexandre Justin Repia' =>'ALEXANDRE JUSTIN REPIA',
+            'KRIZ-TATUM OLAES LAPPAY' => 'KRIZ-TATUM OLAES LAPPAY',
+            'APRIL LYNN ESPAYOS NAVA' => 'APRIL LYNN ESPAYOS NAVA',
+            'JOANAH MARIE PESCADOR O' => 'JOANAH MARIE PESCADOR O',
+            'LIBRADO F GELLEZ JR' => 'LIBRADO F GELLEZ JR',
+            'MELVIN ARIMAGAO MASIN' => 'MELVIN ARIMAGAO MASIN',
+            'MARIANNE PASCUAL GONZAL' => 'MARIANNE P. GONZALES',
+            'MARICRIS ACOSTA GONZALE' => 'MARICRIS A. GONZALES',
+            'TERESA DELA CRUZ PARAIS' => 'TERESA DELA CRUZ PARAISO',
+            'THELMA BATARA CASTRICIO' => 'THELMA B. CASTRICIONES',
+            'MA LEONORAJIMENEZ VALIE' => 'MA LEONORA JIMENEZ VALIENTE',
+            'ARGENTINA SEBASTIAN ABE' => 'ARGENTINA S. ABERIN'
+        ];
+
+        $statusMap = [
+            'VIVIANNE VISPERAS CUNAN' => 'PERMANENT',
+        ];
+
+        $formatName = function($rawName) use ($exceptions) {
+            // Clean name
+            $rawName = preg_replace('/[^a-zA-Z\.\- ]/', '', $rawName);
+            $rawNameUpper = strtoupper($rawName);
+
+            // Check exceptions
+            foreach ($exceptions as $wrong => $correct) {
+                if (str_replace(' ', '', $rawNameUpper) === str_replace(' ', '', strtoupper($wrong))) {
+                    return $correct;
+                }
+            }
+
+            // Otherwise, just uppercase and trim extra spaces
+            return trim(preg_replace('/\s+/', ' ', $rawNameUpper));
+        };
+
+        $lines = preg_split('/\r?\n/', trim($logText));
+        $records = [];
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') continue;
+
+            if (!preg_match('/^(.*?)\s+(\d{2}\/\d{2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
+                continue;
+            }
+
+            $name = $formatName($mLine[1]);
+            $datetime = trim($mLine[2]);
+
+            if (!preg_match('/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+                continue;
+            }
+
+            $month = (int)$m[1];
+            $day = (int)$m[2];
+            $year = (int)$m[3];
+            $hour = (int)$m[4];
+            $min = (int)$m[5];
+            $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
+
+            if ($ampm === 'PM' && $hour < 12) $hour += 12;
+            if ($ampm === 'AM' && $hour == 12) $hour = 0;
+
+            $time24 = sprintf('%02d:%02d', $hour, $min);
+            $dateKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
+            $monthKey = sprintf('%04d-%02d', $year, $month);
+
+            $records[$name][$monthKey][$dateKey]['logs'][] = [
+                'time24' => $time24,
+                'hour24' => $hour
+            ];
+        }
+
+        // Sort logs for each employee and date
+        foreach ($records as &$person) {
+            foreach ($person as &$monthGroup) {
+                foreach ($monthGroup as &$rec) {
+                    usort($rec['logs'], fn($a, $b) => $a['time24'] <=> $b['time24']);
+                }
+            }
+        }
+
+        // Save parsed records into the database
+        foreach ($records as $name => $months) {
+            foreach ($months as $month => $days) {
+                foreach ($days as $date => $rec) {
+                    $status = $statusMap[$name] ?? 'JO';
+                    foreach ($rec['logs'] as $log) {
+                        DTRRecord::firstOrCreate([
+                            'employee_name' => $name,
+                            'log_date' => $date,
+                            'log_time' => $log['time24'],
+                        ], [
+                            'status' => $status
                         ]);
                     }
                 }
