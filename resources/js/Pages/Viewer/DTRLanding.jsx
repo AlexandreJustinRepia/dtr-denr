@@ -24,6 +24,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
     const [loading, setLoading] = useState(false);
     const [dtrLoading, setDtrLoading] = useState(false); // New: DTR-specific loading
     const [downloadLoading, setDownloadLoading] = useState({});
+    const [status, setStatus] = useState(filters?.status || '');
 
     const format12Hour = (time) => {
         if (!time) return '';
@@ -88,7 +89,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
         }
     }, [selectedEmployee]);
 
-    const performRequest = ({ searchValue, monthValue, yearValue, updateList = true }) => {
+    const performRequest = ({ searchValue, monthValue, yearValue, statusValue, updateList = true }) => {
         if (updateList) {
             setLoading(true); // show loader for list + DTR
         } else {
@@ -97,7 +98,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
 
         router.get(
             route('dtr.view'),
-            { search: searchValue || '', month: monthValue, year: yearValue },
+            { search: searchValue || '', month: monthValue, year: yearValue, status: statusValue },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -136,7 +137,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
     };
 
     const handleSearch = () => {
-        performRequest({ searchValue: search, monthValue: filterMonth, yearValue: filterYear });
+        performRequest({ searchValue: search, monthValue: filterMonth, yearValue: filterYear, statusValue: status });
     };
 
     const handleKeyDown = (e) => e.key === 'Enter' && handleSearch();
@@ -145,8 +146,9 @@ export default function DTRLanding({ records, employees, filters, availableDates
         setSearch('');
         setFilterMonth(currentMonth);
         setFilterYear(currentYear);
+        setStatus('');
         setSelectedEmployee(null);
-        performRequest({ searchValue: '', monthValue: currentMonth, yearValue: currentYear });
+        performRequest({ searchValue: '', monthValue: currentMonth, yearValue: currentYear, statusValue: '' });
     };
 
     const hasRecords = Object.keys(records).length > 0;
@@ -187,6 +189,8 @@ export default function DTRLanding({ records, employees, filters, availableDates
                     handleReset={handleReset}
                     selectedEmployee={selectedEmployee}
                     performRequest={performRequest}
+                    status={status}
+                    setStatus={setStatus}
                 />
 
                 <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg mb-6 flex items-center gap-3">
@@ -212,6 +216,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
                             filterMonth={filterMonth}
                             filterYear={filterYear}
                             router={router}
+                            status={status}
                         />
 
                         {/* Right: DTR Panel */}

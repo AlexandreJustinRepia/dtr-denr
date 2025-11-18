@@ -74,7 +74,7 @@ class DTRController extends Controller
             'jomar pimentel' => 'JOMAR PIMENTEL',
             'katrine navaja' => 'KATRINE NAVAJA',
             'maria katrina mallillin' => 'MARIA KATRINA MALLILLIN',
-            'MARICRISPEREZ' => 'MARICRIS PEREZ',
+            'MARICRISPEREZ' => 'MARICRIS Q. PEREZ',
             'MARINEL MACARANAS' => 'MARINEL MACARANAS',
             'MARY JANE TENORIO' => 'MARY JANE TENORIO',
             'maryjoymengullo' => 'MARY JOY MENGULLO',
@@ -142,7 +142,11 @@ class DTRController extends Controller
             'TERESA DELA CRUZ PARAISO',
             'THELMA B. CASTRICIONES',
             'MA LEONORA JIMENEZ VALIENTE',
-            'ARGENTINA S. ABERIN'
+            'ARGENTINA S. ABERIN',
+            'ERA BABBLE CASTRO',
+            'OFELIA SARDENIA CONAG',
+            'MARICRIS Q. PEREZ',
+            'JAN MICHAEL CAMPUED'
         ];
 
         $formatName = function($rawName) use ($exceptions) {
@@ -265,34 +269,36 @@ class DTRController extends Controller
         $search = request('search', '');
         $monthFilter = request('month');
         $yearFilter = request('year');
+        $statusFilter = request('status', ''); // NEW
 
-        // Get available months and years globally
+        // Get available months/years
         $availableDates = DTRRecord::selectRaw('DISTINCT YEAR(log_date) as year, MONTH(log_date) as month')
             ->orderBy('year')
             ->orderBy('month')
             ->get();
 
-        // Default to first available month/year if not provided
         $monthFilter = $monthFilter ?: ($availableDates->first()?->month ?? date('n'));
         $yearFilter = $yearFilter ?: ($availableDates->first()?->year ?? date('Y'));
 
-        // Fetch distinct employee names with optional search
+        // Employees Query
         $employeesQuery = DTRRecord::select('employee_name')
             ->distinct()
             ->when($search, fn($q) => $q->where('employee_name', 'like', "%{$search}%"))
+            ->when($statusFilter, fn($q) => $q->where('status', $statusFilter)) // NEW
             ->orderBy('employee_name');
 
-        // Paginate employees
+        // Paginate
         $employees = \DB::table(\DB::raw("({$employeesQuery->toSql()}) as sub"))
             ->mergeBindings($employeesQuery->getQuery())
             ->paginate(15)
             ->withQueryString();
 
-        // Build DTR records for all employees on the current page
+        // Build records
         $records = collect($employees->items())
-            ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter) {
-                // Fetch all logs for this employee for the selected month/year
+            ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter) {
+
                 $logs = DTRRecord::where('employee_name', $emp->employee_name)
+                    ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
                     ->whereYear('log_date', $yearFilter)
                     ->whereMonth('log_date', $monthFilter)
                     ->orderBy('log_date')
@@ -306,9 +312,9 @@ class DTRController extends Controller
                     $year = (int) substr($monthKey, 0, 4);
                     $month = (int) substr($monthKey, 5, 2);
 
-                    $monthName = Carbon::create($year, $month, 1)->format('F Y'); // <-- New
-
+                    $monthName = Carbon::create($year, $month, 1)->format('F Y');
                     $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+
                     $structured = [];
 
                     for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -327,7 +333,7 @@ class DTRController extends Controller
                         ];
                     }
 
-                    $result[$monthName] = $structured; // <-- Use human-readable month
+                    $result[$monthName] = $structured;
                 }
 
                 return [$emp->employee_name => $result];
@@ -341,6 +347,7 @@ class DTRController extends Controller
                 'search' => $search,
                 'month' => (int) $monthFilter,
                 'year' => (int) $yearFilter,
+                'status' => $statusFilter, // NEW
             ],
             'availableDates' => $availableDates,
         ]);

@@ -8,7 +8,8 @@ export default function EmployeeList({
     search,
     filterMonth,
     filterYear,
-    router
+    router,
+    status, 
 }) {
     return (
         <>
@@ -56,6 +57,7 @@ export default function EmployeeList({
                                             search,
                                             month: filterMonth,
                                             year: filterYear,
+                                            status,
                                         }, { preserveState: true });
                                     }}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${

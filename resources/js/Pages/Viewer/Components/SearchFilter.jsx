@@ -13,9 +13,11 @@ export default function SearchFilters({
     handleReset,
     selectedEmployee,
     performRequest,
+    status,
+    setStatus,
 }) {
     const handleFilterChange = (setter, type) => (e) => {
-        const newValue = Number(e.target.value);
+        const newValue = type === 'status' ? e.target.value : Number(e.target.value);
         setter(newValue);
 
         // Only update DTR if an employee is selected
@@ -24,6 +26,7 @@ export default function SearchFilters({
                 searchValue: search,
                 monthValue: type === 'month' ? newValue : filterMonth,
                 yearValue: type === 'year' ? newValue : filterYear,
+                statusValue: type === 'status' ? newValue : status,
                 updateList: false, // <-- prevent refreshing employee list
             });
         } else {
@@ -31,6 +34,7 @@ export default function SearchFilters({
                 searchValue: search,
                 monthValue: type === 'month' ? newValue : filterMonth,
                 yearValue: type === 'year' ? newValue : filterYear,
+                statusValue: type === 'status' ? newValue : status,
                 updateList: true, // <-- normal search when no employee selected
             });
         }
@@ -93,6 +97,21 @@ export default function SearchFilters({
                             ) : (
                                 <option value="" disabled>No records available</option>
                             )}
+                        </select>
+                    </div>
+                </div>
+
+                {/* Status */}
+                <div className="lg:col-span-2">
+                    <div className="relative">
+                        <select
+                            value={status}
+                            onChange={handleFilterChange(setStatus, 'status')}
+                            className="w-full pl-3 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                        >
+                            <option value="">All</option>
+                            <option value="Permanent">Permanent</option>
+                            <option value="JO">Job Order (JO)</option>
                         </select>
                     </div>
                 </div>
