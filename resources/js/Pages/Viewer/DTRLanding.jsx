@@ -152,7 +152,7 @@ export default function DTRLanding({ records, employees, filters, availableDates
 
     return (
         <>
-            <Head title="PENRO Bulacan DTR Generator" />
+            <Head title="PENRO Bulacan DTR PORTAL" />
 
             {/* Hero Header */}
             <div className="bg-gradient-to-r from-green-700 to-green-900 text-white py-8 shadow-lg">
