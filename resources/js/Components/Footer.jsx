@@ -6,7 +6,7 @@ export default function Footer() {
             <p className="mt-2 inline-flex items-center gap-1.5 text-gray-600">
                 <span>Developed by</span>
                 <a
-                    href="https://github.com/yourusername"
+                    href="https://github.com/AlexandreJustinRepia"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 font-medium text-green-600 hover:text-green-700 transition-colors duration-200 hover:underline"
