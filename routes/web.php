@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Auth;
 
 Route::get('/', [DTRController::class, 'view'])->name('dtr.view');
 Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');
+Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class, 'fetchEmployeeDTR'])
+    ->name('dtr.fetch');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

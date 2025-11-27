@@ -269,7 +269,7 @@ class DTRController extends Controller
         $search = request('search', '');
         $monthFilter = request('month');
         $yearFilter = request('year');
-        $statusFilter = request('status', ''); // NEW
+        $statusFilter = request('status', '');
 
         // Get available months/years
         $availableDates = DTRRecord::selectRaw('DISTINCT YEAR(log_date) as year, MONTH(log_date) as month')
@@ -280,20 +280,19 @@ class DTRController extends Controller
         $monthFilter = $monthFilter ?: ($availableDates->first()?->month ?? date('n'));
         $yearFilter = $yearFilter ?: ($availableDates->first()?->year ?? date('Y'));
 
-        // Employees Query
+        // Employees query (NOT paginated yet)
         $employeesQuery = DTRRecord::select('employee_name')
-            ->distinct()
             ->when($search, fn($q) => $q->where('employee_name', 'like', "%{$search}%"))
-            ->when($statusFilter, fn($q) => $q->where('status', $statusFilter)) // NEW
+            ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
+            ->whereYear('log_date', $yearFilter)
+            ->whereMonth('log_date', $monthFilter)
+            ->groupBy('employee_name')
             ->orderBy('employee_name');
 
-        // Paginate
-        $employees = \DB::table(\DB::raw("({$employeesQuery->toSql()}) as sub"))
-            ->mergeBindings($employeesQuery->getQuery())
-            ->paginate(15)
-            ->withQueryString();
+        // Paginate once only
+        $employees = $employeesQuery->paginate(15)->withQueryString();
 
-        // Build records
+        // Build records for paginated employees
         $records = collect($employees->items())
             ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter) {
 
@@ -347,11 +346,12 @@ class DTRController extends Controller
                 'search' => $search,
                 'month' => (int) $monthFilter,
                 'year' => (int) $yearFilter,
-                'status' => $statusFilter, // NEW
+                'status' => $statusFilter,
             ],
             'availableDates' => $availableDates,
         ]);
     }
+
 
     public function generatePdf($employee, $month)
     {
@@ -441,5 +441,46 @@ class DTRController extends Controller
 
         // ✅ Return the generated PDF
         return response()->download($outputPdf)->deleteFileAfterSend(true);
+    }
+
+    public function fetchEmployeeDTR($employee, $month, $year, $status = null)
+    {
+        $logs = DTRRecord::where('employee_name', $employee)
+            ->when($status, fn($q) => $q->where('status', $status))
+            ->whereYear('log_date', $year)
+            ->whereMonth('log_date', $month)
+            ->orderBy('log_date')
+            ->orderBy('log_time')
+            ->get()
+            ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
+
+        $result = [];
+
+        foreach ($logs as $monthKey => $daysGroup) {
+            $yearNum = (int) substr($monthKey, 0, 4);
+            $monthNum = (int) substr($monthKey, 5, 2);
+            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
+
+            $structured = [];
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $dateStr = Carbon::create($yearNum, $monthNum, $day)->format('Y-m-d');
+                $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
+
+                $dayLogs = $daysGroup->where('log_date', $dateStr)
+                    ->map(fn($log) => ['time' => $log->log_time])
+                    ->values()
+                    ->toArray();
+
+                $structured[$dateStr] = [
+                    'weekday' => $weekday,
+                    'logs' => $dayLogs,
+                ];
+            }
+
+            $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
+            $result[$monthName] = $structured;
+        }
+
+        return response()->json(['records' => $result]);
     }
 }

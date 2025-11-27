@@ -1,4 +1,4 @@
-import { Search, CalendarFold, Calendar1 } from 'lucide-react';
+import { Search, CalendarFold, Calendar1, Loader2 } from 'lucide-react';
 
 export default function SearchFilters({
     search,
@@ -15,29 +15,23 @@ export default function SearchFilters({
     performRequest,
     status,
     setStatus,
+    loadingEmployees, // new prop
 }) {
     const handleFilterChange = (setter, type) => (e) => {
         const newValue = type === 'status' ? e.target.value : Number(e.target.value);
         setter(newValue);
 
-        // Only update DTR if an employee is selected
-        if (selectedEmployee) {
-            performRequest({
-                searchValue: search,
-                monthValue: type === 'month' ? newValue : filterMonth,
-                yearValue: type === 'year' ? newValue : filterYear,
-                statusValue: type === 'status' ? newValue : status,
-                updateList: false, // <-- prevent refreshing employee list
-            });
-        } else {
-            performRequest({
-                searchValue: search,
-                monthValue: type === 'month' ? newValue : filterMonth,
-                yearValue: type === 'year' ? newValue : filterYear,
-                statusValue: type === 'status' ? newValue : status,
-                updateList: true, // <-- normal search when no employee selected
-            });
-        }
+        const monthValue = type === 'month' ? newValue : filterMonth;
+        const yearValue = type === 'year' ? newValue : filterYear;
+        const statusValue = type === 'status' ? newValue : status;
+
+        performRequest({
+            searchValue: search,
+            monthValue,
+            yearValue,
+            statusValue,
+            updateList: !selectedEmployee, // update employee list if no employee selected
+        });
     };
 
     return (
@@ -54,6 +48,7 @@ export default function SearchFilters({
                         onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={handleKeyDown}
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+                        disabled={loadingEmployees}
                     />
                 </div>
 
@@ -65,7 +60,7 @@ export default function SearchFilters({
                             value={filterMonth}
                             onChange={handleFilterChange(setFilterMonth, 'month')}
                             className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
-                            disabled={!availableDates || availableDates.length === 0}
+                            disabled={loadingEmployees || !availableDates?.length}
                         >
                             {availableDates?.length ? (
                                 [...new Set(availableDates.map(d => d.month))].map(m => (
@@ -88,7 +83,7 @@ export default function SearchFilters({
                             value={filterYear}
                             onChange={handleFilterChange(setFilterYear, 'year')}
                             className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
-                            disabled={!availableDates || availableDates.length === 0}
+                            disabled={loadingEmployees || !availableDates?.length}
                         >
                             {availableDates?.length ? (
                                 [...new Set(availableDates.map(d => d.year))].map(y => (
@@ -108,6 +103,7 @@ export default function SearchFilters({
                             value={status}
                             onChange={handleFilterChange(setStatus, 'status')}
                             className="w-full pl-3 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                            disabled={loadingEmployees}
                         >
                             <option value="">All</option>
                             <option value="Permanent">Permanent</option>
@@ -121,13 +117,23 @@ export default function SearchFilters({
                     <button
                         onClick={handleSearch}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-5 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
+                        disabled={loadingEmployees}
                     >
-                        <Search className="w-4 h-4" /> Search
+                        {loadingEmployees ? (
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+                            </div>
+                        ) : (
+                            <>
+                                <Search className="w-4 h-4" /> Search
+                            </>
+                        )}
                     </button>
 
                     <button
                         onClick={handleReset}
                         className="px-5 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition shadow-sm"
+                        disabled={loadingEmployees}
                     >
                         Reset
                     </button>

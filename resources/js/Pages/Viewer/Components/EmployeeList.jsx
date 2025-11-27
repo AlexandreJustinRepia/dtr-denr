@@ -1,4 +1,4 @@
-import { User } from "lucide-react";
+import { User, Loader2 } from "lucide-react";
 
 export default function EmployeeList({
     employeeList,
@@ -9,11 +9,35 @@ export default function EmployeeList({
     filterMonth,
     filterYear,
     router,
-    status, 
+    status,
+    loadingEmployees, // new prop
 }) {
+    // Handle page navigation
+    const goToPage = (page) => {
+        setSelectedEmployee(null); // reset selected employee
+        router.get(
+            route("dtr.view"),
+            {
+                page,
+                search,
+                month: filterMonth,
+                year: filterYear,
+                status,
+            },
+            {
+                preserveState: true,
+                preserveScroll: true,
+            }
+        );
+    };
+
     return (
         <>
-            {employeeList && employeeList.length > 0 ? (
+            {loadingEmployees ? (
+                <div className="flex justify-center items-center py-16">
+                    <Loader2 className="w-10 h-10 animate-spin text-green-600" />
+                </div>
+            ) : employeeList && employeeList.length > 0 ? (
                 <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
                         <User className="w-5 h-5 text-green-600" /> Select Employee
@@ -50,16 +74,7 @@ export default function EmployeeList({
                             {Array.from({ length: employees.last_page }, (_, i) => i + 1).map((page) => (
                                 <button
                                     key={page}
-                                    onClick={() => {
-                                        setSelectedEmployee(null);
-                                        router.get(route("dtr.view"), {
-                                            page,
-                                            search,
-                                            month: filterMonth,
-                                            year: filterYear,
-                                            status,
-                                        }, { preserveState: true });
-                                    }}
+                                    onClick={() => goToPage(page)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                                         employees.current_page === page
                                             ? "bg-green-600 text-white"
