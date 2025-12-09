@@ -85,7 +85,7 @@ class DTRController extends Controller
             'STEPHANIE MAE VALIENTE' => 'STEPHANIE MAE VALIENTE',
             'shara mae bermudez' => 'SHARA MAE BERMUDEZ',
             'RAMONA ALLAUIGAN DIANCI' => 'RAMONA ALLAUIGAN DIANCIN',
-            'ERABABBLECASTRO' => 'ERA BABBLE CASTRO',
+            'ERABABBLECASTRO' => 'ERA BALINGIT CASTRO',
             'OFELIA SARDENIA CONAG' => 'OFELIA SARDENIA CONAG',
             'REIZLE GACUSAN' => 'REIZLE GACUSAN',
             'RenzEstrella' => 'RENZ ESTRELLA',
@@ -143,7 +143,7 @@ class DTRController extends Controller
             'THELMA B. CASTRICIONES',
             'MA LEONORA JIMENEZ VALIENTE',
             'ARGENTINA S. ABERIN',
-            'ERA BABBLE CASTRO',
+            'ERA BALINGIT CASTRO',
             'OFELIA SARDENIA CONAG',
             'MARICRIS Q. PEREZ',
             'JAN MICHAEL CAMPUED'
@@ -277,8 +277,17 @@ class DTRController extends Controller
             ->orderBy('month')
             ->get();
 
-        $monthFilter = $monthFilter ?: ($availableDates->first()?->month ?? date('n'));
-        $yearFilter = $yearFilter ?: ($availableDates->first()?->year ?? date('Y'));
+        // Auto-select latest month/year if not provided
+        if (!$monthFilter || !$yearFilter) {
+            if ($availableDates->isNotEmpty()) {
+                $latest = $availableDates->sortByDesc(fn($d) => $d->year . str_pad($d->month, 2, '0', STR_PAD_LEFT))->first();
+                $monthFilter = $monthFilter ?: $latest->month;
+                $yearFilter = $yearFilter ?: $latest->year;
+            } else {
+                $monthFilter = $monthFilter ?: date('n');
+                $yearFilter = $yearFilter ?: date('Y');
+            }
+        }
 
         // Employees query (NOT paginated yet)
         $employeesQuery = DTRRecord::select('employee_name')
@@ -289,13 +298,11 @@ class DTRController extends Controller
             ->groupBy('employee_name')
             ->orderBy('employee_name');
 
-        // Paginate once only
         $employees = $employeesQuery->paginate(15)->withQueryString();
 
         // Build records for paginated employees
         $records = collect($employees->items())
             ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter) {
-
                 $logs = DTRRecord::where('employee_name', $emp->employee_name)
                     ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
                     ->whereYear('log_date', $yearFilter)
@@ -310,12 +317,10 @@ class DTRController extends Controller
                 foreach ($logs as $monthKey => $daysGroup) {
                     $year = (int) substr($monthKey, 0, 4);
                     $month = (int) substr($monthKey, 5, 2);
-
                     $monthName = Carbon::create($year, $month, 1)->format('F Y');
                     $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
 
                     $structured = [];
-
                     for ($day = 1; $day <= $daysInMonth; $day++) {
                         $date = Carbon::create($year, $month, $day);
                         $dateStr = $date->format('Y-m-d');
@@ -351,6 +356,7 @@ class DTRController extends Controller
             'availableDates' => $availableDates,
         ]);
     }
+
 
 
     public function generatePdf($employee, $month)
