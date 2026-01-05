@@ -8,7 +8,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
 Route::get('/', [DTRController::class, 'view'])->name('dtr.view');
-Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');
+Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');   
 Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class, 'fetchEmployeeDTR'])
     ->name('dtr.fetch');
 
@@ -22,6 +22,7 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::get('/dashboard', fn() => Inertia::render('Dashboard'))->name('dashboard');
     Route::get('/admin/dtr', [DTRController::class, 'dtr'])->name('dtr');
     Route::post('/generate', [DTRController::class, 'generate'])->name('admin.dtr.generate');
+    Route::get('/generate-dtr-docx/{employee}/{month}', [DTRController::class, 'generateDocx']); 
 
     Route::get('/admin/dtr/history', [DTRController::class, 'history'])
         ->name('admin.dtr.history');

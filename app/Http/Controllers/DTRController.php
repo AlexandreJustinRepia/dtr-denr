@@ -112,7 +112,7 @@ class DTRController extends Controller
             'Alexandre Justin Repia' =>'ALEXANDRE JUSTIN REPIA',
             'KRIZ-TATUM OLAES LAPPAY' => 'KRIZ-TATUM OLAES LAPPAY',
             'APRIL LYNN ESPAYOS NAVA' => 'APRIL LYNN ESPAYOS NAVA',
-            'JOANAH MARIE PESCADOR O' => 'JOANAH MARIE PESCADOR O',
+            'JOANAH MARIE PESCADOR O' => 'JOANAH MARIE P. ODANGA',
             'LIBRADO F GELLEZ JR' => 'LIBRADO F GELLEZ JR',
             'MELVIN ARIMAGAO MASIN' => 'MELVIN ARIMAGAO MASIN',
             'MARIANNE PASCUAL GONZAL' => 'MARIANNE P. GONZALES',
@@ -357,6 +357,84 @@ class DTRController extends Controller
         ]);
     }
 
+    public function generateDocx($employee, $month)
+    {
+        $parsedMonth = Carbon::parse($month);
+
+        $monthName = $parsedMonth->format('F Y');
+        $yearMonth = $parsedMonth->format('Y-m');
+
+        $records = DTRRecord::where('employee_name', $employee)
+            ->whereMonth('log_date', $parsedMonth->month)
+            ->whereYear('log_date', $parsedMonth->year)
+            ->orderBy('log_date')
+            ->orderBy('log_time')
+            ->get()
+            ->groupBy('log_date');
+
+        $templatePath = storage_path('app/templates/Sample.docx');
+        $templateProcessor = new TemplateProcessor($templatePath);
+
+        // Replace placeholders
+        $templateProcessor->setValue('employee_name', strtoupper($employee));
+        $templateProcessor->setValue('month_name', $monthName);
+
+        $daysInMonth = $parsedMonth->daysInMonth;
+
+        // Clone rows
+        $templateProcessor->cloneRow('n', $daysInMonth);
+        $templateProcessor->cloneRow('2', $daysInMonth);
+
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
+            $weekday = $date->format('D');
+            $logs = $records[$date->format('Y-m-d')] ?? collect();
+
+            $checkIn = $breakOut = $breakIn = $checkOut = '';
+
+            foreach ($logs as $log) {
+                $time24 = substr($log->log_time, 0, 5);
+                $timeObj = Carbon::createFromFormat('H:i', $time24);
+                $hour = (int) $timeObj->format('H');
+                $time12 = $timeObj->format('g:i');
+
+                if ($hour >= 5 && $hour <= 11) {
+                    $checkIn = $time12;
+                } elseif ($hour == 12) {
+                    if (empty($breakOut)) {
+                        $breakOut = $time12;
+                    } else {
+                        $breakIn = $time12;
+                    }
+                } elseif ($hour >= 13 && $hour <= 21) {
+                    $checkOut = $time12;
+                }
+            }
+
+            // First table
+            $templateProcessor->setValue("n#{$day}", $day);
+            $templateProcessor->setValue("d#{$day}", $weekday);
+            $templateProcessor->setValue("c_in#{$day}", $checkIn);
+            $templateProcessor->setValue("b_out#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in#{$day}", $breakIn);
+            $templateProcessor->setValue("c_out#{$day}", $checkOut);
+
+            // Second table
+            $templateProcessor->setValue("2#{$day}", $day);
+            $templateProcessor->setValue("l#{$day}", $weekday);
+            $templateProcessor->setValue("c_in2#{$day}", $checkIn);
+            $templateProcessor->setValue("b_ou2#{$day}", $breakOut);
+            $templateProcessor->setValue("b_in2#{$day}", $breakIn);
+            $templateProcessor->setValue("c_ou2#{$day}", $checkOut);
+        }
+
+        // Save DOCX (no conversion)
+        $outputDocx = storage_path("app/public/DTR_{$employee}_{$month}.docx");
+        $templateProcessor->saveAs($outputDocx);
+
+        // Download DOCX
+        return response()->download($outputDocx);
+    }
 
 
     public function generatePdf($employee, $month)
