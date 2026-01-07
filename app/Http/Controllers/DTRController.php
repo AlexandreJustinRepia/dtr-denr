@@ -134,7 +134,7 @@ class DTRController extends Controller
             'JESSICA GARCIA',
             'EDMAR A. GALLARDO',
             'KRIZ-TATUM OLAES LAPPAY',
-            'JOANAH MARIE PESCADOR O',
+            'JOANAH MARIE P. ODANGA',
             'LIBRADO F GELLEZ JR',
             'MELVIN ARIMAGAO MASIN',
             'MARIANNE P. GONZALES',
