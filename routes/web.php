@@ -7,11 +7,6 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
-Route::get('/', [DTRController::class, 'view'])->name('dtr.view');
-Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');   
-Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class, 'fetchEmployeeDTR'])
-    ->name('dtr.fetch');
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -28,6 +23,11 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
         ->name('admin.dtr.history');
     Route::get('/admin/dtr/batch/{id}/raw', [DTRController::class, 'batchRaw'])
         ->name('admin.dtr.batch.raw');
+
+    Route::get('/', [DTRController::class, 'view'])->name('dtr.view');
+    Route::get('/generate-dtr/{employee}/{month}', [DTRController::class, 'generatePdf'])->name('dtr.generate');   
+    Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class, 'fetchEmployeeDTR'])
+        ->name('dtr.fetch');
 });
 
 

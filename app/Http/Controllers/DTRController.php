@@ -172,14 +172,15 @@ class DTRController extends Controller
             $line = trim($line);
             if ($line === '') continue;
 
-            if (!preg_match('/^(.*?)\s+(\d{2}\/\d{2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
+            if (!preg_match('/^(.*?)\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
+                logger('INVALID DTR LINE: ' . $line);
                 continue;
             }
 
             $name = $formatName($mLine[1]);
             $datetime = trim($mLine[2]);
 
-            if (!preg_match('/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+            if (!preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
                 continue;
             }
 
