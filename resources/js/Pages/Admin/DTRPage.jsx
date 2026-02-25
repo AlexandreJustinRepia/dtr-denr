@@ -54,11 +54,13 @@ export default function DTRPage() {
     <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-green-800 flex items-center gap-3">
-            <Upload className="w-8 h-8 text-green-600" />
+          <h1 className="text-2xl md:text-4xl font-extrabold text-green-900 flex items-center gap-3 tracking-tight">
+            <div className="bg-green-100 p-2 rounded-xl">
+              <Upload className="w-8 h-8 text-green-600" />
+            </div>
             DTR Log Generator
           </h1>
-          <p className="text-gray-600 mt-1">Paste raw attendance logs to generate structured DTR data.</p>
+          <p className="text-gray-500 mt-2 text-lg">Paste raw attendance logs to generate structured DTR data with ease.</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -93,7 +95,7 @@ export default function DTRPage() {
                     onChange={e => setLogText(e.target.value)}
                     required
                   />
-                  
+
                   {alreadySaved && batchId && (
                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-amber-700">
                       <Clock className="w-4 h-4" />
@@ -134,21 +136,49 @@ export default function DTRPage() {
                 </h2>
 
                 {Object.entries(records).map(([name, months]) => (
-                  <div key={name} className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4">
-                      <h3 className="font-semibold text-lg">{name}</h3>
+                  <div key={name} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md">
+                    <div className="bg-green-600 text-white p-5 flex items-center justify-between">
+                      <h3 className="font-bold text-xl flex items-center gap-2">
+                        <Clock className="w-5 h-5 opacity-80" />
+                        {name}
+                      </h3>
+                      <span className="text-xs bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">Employee</span>
                     </div>
-                    <div className="p-4 space-y-3">
-                      {Object.entries(months).map(([monthKey, monthGroup]) => (
-                        <details key={monthKey} className="group">
-                          <summary className="cursor-pointer font-medium text-green-700 hover:text-green-800 flex items-center justify-between py-2 border-b border-gray-200">
-                            <span>{monthKey}</span>
-                            <span className="text-xs text-gray-500 group-open:rotate-180 transition-transform">▼</span>
-                          </summary>
-                          <pre className="mt-2 p-3 bg-gray-50 rounded text-xs overflow-x-auto font-mono text-gray-700">
-                            {JSON.stringify(monthGroup, null, 2)}
-                          </pre>
-                        </details>
+                    <div className="p-5 space-y-4">
+                      {Object.entries(months).map(([monthKey, days]) => (
+                        <div key={monthKey} className="border border-gray-100 rounded-xl overflow-hidden">
+                          <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex justify-between items-center">
+                            <span className="font-semibold text-gray-700">{monthKey}</span>
+                            <span className="text-xs text-gray-400">{Object.keys(days).length} days recorded</span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead className="bg-white text-gray-400 uppercase tracking-wider">
+                                <tr>
+                                  <th className="px-4 py-3 text-left font-medium">Date</th>
+                                  <th className="px-4 py-3 text-center font-medium">In</th>
+                                  <th className="px-4 py-3 text-center font-medium">Out</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {Object.entries(days).map(([date, row], idx) => (
+                                  <tr key={idx} className="hover:bg-green-50/30 transition-colors">
+                                    <td className="px-4 py-2 font-medium text-gray-600">{date}</td>
+                                    <td className="px-4 py-2 text-center font-mono text-green-600">{row.in || '-'}</td>
+                                    <td className="px-4 py-2 text-center font-mono text-red-500">{row.out || '-'}</td>
+                                  </tr>
+                                )).slice(0, 5)}
+                                {Object.keys(days).length > 5 && (
+                                  <tr>
+                                    <td colSpan="3" className="px-4 py-2 text-center text-gray-400 italic bg-gray-50/50">
+                                      ... and {Object.keys(days).length - 5} more days
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

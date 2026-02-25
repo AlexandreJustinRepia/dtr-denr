@@ -51,14 +51,15 @@ export default function DTRHistory({ onReprocess, refreshSignal }) {
             batches.map(b => (
               <div
                 key={b.id}
-                className="group p-4 border border-gray-200 rounded-lg hover:border-green-400 hover:shadow-sm transition-all bg-gradient-to-r from-gray-50 to-white"
+                className="group p-4 border border-gray-100 rounded-xl hover:border-green-300 hover:shadow-lg hover:shadow-green-500/5 transition-all bg-white relative overflow-hidden"
               >
+                <div className="absolute top-0 left-0 w-1 h-full bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 truncate">{b.batch_name}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
+                    <p className="font-bold text-gray-800 truncate group-hover:text-green-700 transition-colors">{b.batch_name}</p>
+                    <div className="flex items-center gap-3 text-[10px] uppercase tracking-wider font-semibold text-gray-400 mt-2">
+                      <span className="flex items-center gap-1 bg-gray-50 px-2 py-0.5 rounded">
+                        <Calendar className="w-2.5 h-2.5" />
                         {format(new Date(b.uploaded_at), 'MMM d, yyyy')}
                       </span>
                       <span className="flex items-center gap-1">
