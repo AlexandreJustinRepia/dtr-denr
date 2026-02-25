@@ -77,7 +77,7 @@ export default function DTRLanding({ employees, filters, availableDates }) {
         try {
             const response = await fetch(`/generate-dtr-docx/${encodeURIComponent(employeeName)}/${month}`, {
                 method: 'GET',
-                headers: { 
+                headers: {
                     'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 },
             });

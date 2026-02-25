@@ -48,19 +48,17 @@ export default function EmployeeList({
                             <button
                                 key={emp.employee_name}
                                 onClick={() => setSelectedEmployee(emp.employee_name)}
-                                className={`p-4 rounded-lg border-2 text-left transition-all shadow-sm hover:shadow-md ${
-                                    selectedEmployee === emp.employee_name
+                                className={`p-4 rounded-lg border-2 text-left transition-all shadow-sm hover:shadow-md ${selectedEmployee === emp.employee_name
                                         ? "border-green-600 bg-green-50 text-green-800 font-semibold ring-2 ring-green-200"
                                         : "border-gray-200 bg-white hover:border-green-300"
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div
-                                        className={`w-3 h-3 rounded-full ${
-                                            selectedEmployee === emp.employee_name
+                                        className={`w-3 h-3 rounded-full ${selectedEmployee === emp.employee_name
                                                 ? "bg-green-600"
                                                 : "bg-green-400"
-                                        }`}
+                                            }`}
                                     ></div>
                                     <span className="truncate text-sm">{emp.employee_name}</span>
                                 </div>
@@ -75,11 +73,10 @@ export default function EmployeeList({
                                 <button
                                     key={page}
                                     onClick={() => goToPage(page)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                                        employees.current_page === page
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${employees.current_page === page
                                             ? "bg-green-600 text-white"
                                             : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                                    }`}
+                                        }`}
                                 >
                                     {page}
                                 </button>

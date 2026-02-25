@@ -463,8 +463,8 @@ class DTRController extends Controller
         $daysInMonth = $parsedMonth->daysInMonth;
 
         // Clone rows
-        $templateProcessor->cloneRow('n', $daysInMonth);
-        $templateProcessor->cloneRow('2', $daysInMonth);
+        $templateProcessor->cloneRow('row1', $daysInMonth);
+        $templateProcessor->cloneRow('row2', $daysInMonth);
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
@@ -495,21 +495,21 @@ class DTRController extends Controller
                 }
             }
 
-            // First table
-            $templateProcessor->setValue("n#{$day}", $day);
-            $templateProcessor->setValue("d#{$day}", $weekday);
-            $templateProcessor->setValue("c_in#{$day}", $checkIn);
-            $templateProcessor->setValue("b_out#{$day}", $breakOut);
-            $templateProcessor->setValue("b_in#{$day}", $breakIn);
-            $templateProcessor->setValue("c_out#{$day}", $checkOut);
+            // First table (Original)
+            $templateProcessor->setValue("row1#{$day}", $day);
+            $templateProcessor->setValue("d1#{$day}", $weekday);
+            $templateProcessor->setValue("in1#{$day}", $checkIn);
+            $templateProcessor->setValue("bout1#{$day}", $breakOut);
+            $templateProcessor->setValue("bin1#{$day}", $breakIn);
+            $templateProcessor->setValue("out1#{$day}", $checkOut);
 
-            // Second table
-            $templateProcessor->setValue("2#{$day}", $day);
-            $templateProcessor->setValue("l#{$day}", $weekday);
-            $templateProcessor->setValue("c_in2#{$day}", $checkIn);
-            $templateProcessor->setValue("b_ou2#{$day}", $breakOut);
-            $templateProcessor->setValue("b_in2#{$day}", $breakIn);
-            $templateProcessor->setValue("c_ou2#{$day}", $checkOut);
+            // Second table (Duplicate)
+            $templateProcessor->setValue("row2#{$day}", $day);
+            $templateProcessor->setValue("d2#{$day}", $weekday);
+            $templateProcessor->setValue("in2#{$day}", $checkIn);
+            $templateProcessor->setValue("bout2#{$day}", $breakOut);
+            $templateProcessor->setValue("bin2#{$day}", $breakIn);
+            $templateProcessor->setValue("out2#{$day}", $checkOut);
         }
 
         // Save DOCX (no conversion)
@@ -546,8 +546,8 @@ class DTRController extends Controller
         $daysInMonth = $parsedMonth->daysInMonth;
 
         // Clone rows for both tables
-        $templateProcessor->cloneRow('n', $daysInMonth);
-        $templateProcessor->cloneRow('2', $daysInMonth);
+        $templateProcessor->cloneRow('row1', $daysInMonth);
+        $templateProcessor->cloneRow('row2', $daysInMonth);
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
@@ -578,21 +578,21 @@ class DTRController extends Controller
                 }
             }
 
-            // Fill first table
-            $templateProcessor->setValue("n#{$day}", $day);
-            $templateProcessor->setValue("d#{$day}", $weekday);
-            $templateProcessor->setValue("c_in#{$day}", $checkIn);
-            $templateProcessor->setValue("b_out#{$day}", $breakOut);
-            $templateProcessor->setValue("b_in#{$day}", $breakIn);
-            $templateProcessor->setValue("c_out#{$day}", $checkOut);
+            // Fill first table (Original)
+            $templateProcessor->setValue("row1#{$day}", $day);
+            $templateProcessor->setValue("d1#{$day}", $weekday);
+            $templateProcessor->setValue("in1#{$day}", $checkIn);
+            $templateProcessor->setValue("bout1#{$day}", $breakOut);
+            $templateProcessor->setValue("bin1#{$day}", $breakIn);
+            $templateProcessor->setValue("out1#{$day}", $checkOut);
 
-            // Fill second table
-            $templateProcessor->setValue("2#{$day}", $day);
-            $templateProcessor->setValue("l#{$day}", $weekday);
-            $templateProcessor->setValue("c_in2#{$day}", $checkIn);
-            $templateProcessor->setValue("b_ou2#{$day}", $breakOut);
-            $templateProcessor->setValue("b_in2#{$day}", $breakIn);
-            $templateProcessor->setValue("c_ou2#{$day}", $checkOut);
+            // Fill second table (Duplicate)
+            $templateProcessor->setValue("row2#{$day}", $day);
+            $templateProcessor->setValue("d2#{$day}", $weekday);
+            $templateProcessor->setValue("in2#{$day}", $checkIn);
+            $templateProcessor->setValue("bout2#{$day}", $breakOut);
+            $templateProcessor->setValue("bin2#{$day}", $breakIn);
+            $templateProcessor->setValue("out2#{$day}", $checkOut);
         }
 
         // ✅ Save temporary DOCX file
