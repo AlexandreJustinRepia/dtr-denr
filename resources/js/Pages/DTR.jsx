@@ -7,6 +7,7 @@ export default function DTR() {
   const [logText, setLogText] = useState('');
   const [records, setRecords] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [parsingStats, setParsingStats] = useState(null);
 
   const format12Hour = (time) => {
     if (!time) return '--:--';
@@ -22,6 +23,10 @@ export default function DTR() {
     try {
       const res = await axios.post('/generate', { logText, batchName: 'Public Generation' });
       setRecords(res.data.records);
+      setParsingStats({
+        duration: res.data.duration,
+        recordCount: res.data.recordCount
+      });
     } catch (err) {
       console.error(err);
       alert('Error parsing log.');
@@ -114,6 +119,33 @@ export default function DTR() {
           {/* ==== RESULTS ==== */}
           {records && (
             <div className="lg:col-span-12 space-y-12 mt-12 animate-in fade-in slide-in-from-bottom-10 duration-1000">
+              {/* Performance Stats */}
+              <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-6">
+                  <div className="bg-green-700 p-4 rounded-3xl shadow-lg shadow-green-700/20">
+                    <Zap className="text-white w-6 h-6 fill-current" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Parser Performance</h3>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-gray-900 tracking-tighter">
+                        {parsingStats ? `${(parsingStats.duration / 1000).toFixed(3)}s` : '0.000s'}
+                      </span>
+                      <span className="text-[10px] font-black text-green-700 bg-green-50 px-2 py-1 rounded-lg uppercase">
+                        {parsingStats ? Math.round(parsingStats.recordCount / (parsingStats.duration / 1000)).toLocaleString() : 0} recs/sec
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px w-full md:w-px md:h-12 bg-gray-100"></div>
+                <div className="text-center md:text-right">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Throughput</p>
+                  <p className="text-sm font-black text-gray-800 uppercase tracking-tight">
+                    {parsingStats?.recordCount.toLocaleString() || 0} Total Records Processed
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-4">
                 <div className="h-px flex-1 bg-gray-200"></div>
                 <h2 className="text-xs font-black text-gray-500 uppercase tracking-[0.4em] flex items-center gap-3">

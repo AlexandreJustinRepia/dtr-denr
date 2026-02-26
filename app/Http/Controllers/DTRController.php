@@ -81,7 +81,10 @@ class DTRController extends Controller
         $existing = DTRBatch::where('hash', $hash)->first();
 
         // ---- 2. Parse log text --------------------------------------------------
+        $startTime = microtime(true);
         $parsed = $this->parseLogText($logText);
+        $endTime = microtime(true);
+        $duration = round(($endTime - $startTime) * 1000, 2);
 
         // ---- 3. Save batch (only if new) ----------------------------------------
         if (!$existing) {
@@ -102,6 +105,8 @@ class DTRController extends Controller
             'records' => $parsed['records'],
             'alreadySaved' => (bool)$existing,
             'batchId' => $batchId,
+            'duration' => $duration,
+            'recordCount' => $parsed['totalRecords'],
             'message' => $existing
             ? 'This log was already processed.'
             : 'DTR records have been successfully saved to the database.',

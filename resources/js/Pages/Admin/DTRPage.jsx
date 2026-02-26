@@ -28,6 +28,7 @@ export default function DTRPage() {
   const [batchId, setBatchId] = useState(null);
   const [batchName, setBatchName] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
+  const [parsingStats, setParsingStats] = useState(null);
 
   const generate = async e => {
     e.preventDefault();
@@ -45,6 +46,10 @@ export default function DTRPage() {
       setRecords(data.records);
       setAlreadySaved(data.alreadySaved);
       setBatchId(data.batchId);
+      setParsingStats({
+        duration: data.duration,
+        recordCount: data.recordCount
+      });
 
       if (!data.alreadySaved) {
         setRefreshSignal(prev => prev + 1);
@@ -269,17 +274,34 @@ export default function DTRPage() {
           <aside className="lg:col-span-4 space-y-10">
             {/* Insights Card */}
             <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
-              <p className="text-[10px] font-black text-green-600 uppercase tracking-[0.3em] mb-4">Quick Insight</p>
+              <p className="text-[10px] font-black text-green-600 uppercase tracking-[0.3em] mb-4">Actual Parsing Speed</p>
               <div className="space-y-6 relative z-10">
-                <div>
-                  <p className="text-3xl font-black text-gray-900 tracking-tighter">0.3s</p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Avg. Parse Speed</p>
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-3xl font-black text-gray-900 tracking-tighter">
+                      {parsingStats ? `${(parsingStats.duration / 1000).toFixed(3)}s` : '0.000s'}
+                    </p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Parse Duration</p>
+                  </div>
+                  {parsingStats && (
+                    <div className="text-right">
+                      <p className="text-xl font-black text-green-700 tracking-tighter">
+                        {Math.round(parsingStats.recordCount / (parsingStats.duration / 1000)).toLocaleString()}
+                      </p>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">Records / Sec</p>
+                    </div>
+                  )}
                 </div>
                 <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 w-full animate-grow-x origin-left"></div>
+                  <div
+                    className="h-full bg-green-500 transition-all duration-1000 ease-out"
+                    style={{ width: parsingStats ? '100%' : '0%' }}
+                  ></div>
                 </div>
                 <p className="text-[11px] font-medium text-gray-500 leading-relaxed">
-                  The parser is optimized to handle thousands of records in milliseconds. High efficiency is maintained.
+                  {parsingStats
+                    ? `Processed ${parsingStats.recordCount.toLocaleString()} attendance records in ${parsingStats.duration}ms with ultra-low latency.`
+                    : 'The parser is optimized to handle thousands of records in milliseconds. High efficiency is maintained.'}
                 </p>
               </div>
               <Zap className="absolute -right-2 -bottom-2 text-green-50/50 group-hover:scale-110 transition-transform duration-700" size={100} />
