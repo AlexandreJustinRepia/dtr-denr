@@ -103,11 +103,13 @@ export default function DTRRecords({
                                             <table className="w-full text-xs">
                                                 <thead className="bg-white border-b border-gray-100">
                                                     <tr className="text-[11px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                                                        <th className="px-8 py-6 text-left selection:bg-green-100">Day Matrix</th>
-                                                        <th className="px-5 py-6 font-bold">Arrival</th>
-                                                        <th className="px-5 py-6 font-bold">B. Out</th>
-                                                        <th className="px-5 py-6 font-bold">B. In</th>
-                                                        <th className="px-5 py-6 font-bold">Departure</th>
+                                                        <th className="px-8 py-6 text-left selection:bg-green-100">Day</th>
+                                                        <th className="px-5 py-6 font-bold">Check In</th>
+                                                        <th className="px-5 py-6 font-bold">Break Out</th>
+                                                        <th className="px-5 py-6 font-bold">Break In</th>
+                                                        <th className="px-5 py-6 font-bold">Check Out</th>
+                                                        <th className="px-5 py-6 font-bold">Late</th>
+                                                        <th className="px-5 py-6 font-bold">Undertime</th>
                                                     </tr>
                                                 </thead>
 
