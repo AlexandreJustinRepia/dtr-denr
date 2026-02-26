@@ -1,4 +1,4 @@
-import { Search, CalendarFold, Calendar1, Loader2 } from 'lucide-react';
+import { Search, CalendarFold, Calendar1, Loader2, Zap, RotateCcw } from 'lucide-react';
 
 export default function SearchFilters({
     search,
@@ -15,7 +15,7 @@ export default function SearchFilters({
     performRequest,
     status,
     setStatus,
-    loadingEmployees, // new prop
+    loadingEmployees,
 }) {
     const handleFilterChange = (setter, type) => (e) => {
         const newValue = type === 'status' ? e.target.value : Number(e.target.value);
@@ -30,36 +30,46 @@ export default function SearchFilters({
             monthValue,
             yearValue,
             statusValue,
-            updateList: !selectedEmployee, // update employee list if no employee selected
+            updateList: !selectedEmployee,
         });
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-md p-5 md:p-6 mb-6 border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+        <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 p-8 md:p-10 mb-10 border border-gray-100 overflow-hidden">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="bg-green-100 p-2 rounded-xl">
+                    <Search className="w-4 h-4 text-green-700" />
+                </div>
+                <h2 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em]">Refine Retrieval Parameters</h2>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
                 {/* Search Input */}
-                <div className="lg:col-span-5 relative">
-                    <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search employee name..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
-                        disabled={loadingEmployees}
-                    />
+                <div className="lg:col-span-12 relative group">
+                    <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Search Personnel</label>
+                    <div className="relative">
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Type employee name..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-full pl-14 pr-6 py-5 bg-gray-50 border-none rounded-[32px] text-sm font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-green-500/10 shadow-inner transition-all"
+                            disabled={loadingEmployees}
+                        />
+                    </div>
                 </div>
 
-                {/* Month */}
-                <div className="lg:col-span-2">
+                {/* Filters Row */}
+                <div className="lg:col-span-3 relative group">
+                    <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Month Selection</label>
                     <div className="relative">
-                        <CalendarFold className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                        <CalendarFold className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-600" />
                         <select
                             value={filterMonth}
                             onChange={handleFilterChange(setFilterMonth, 'month')}
-                            className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                            className="w-full pl-12 pr-6 py-5 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-800 appearance-none focus:ring-4 focus:ring-green-500/10 shadow-inner"
                             disabled={loadingEmployees || !availableDates?.length}
                         >
                             {availableDates?.length ? (
@@ -69,20 +79,20 @@ export default function SearchFilters({
                                     </option>
                                 ))
                             ) : (
-                                <option value="" disabled>No records available</option>
+                                <option value="" disabled>No records</option>
                             )}
                         </select>
                     </div>
                 </div>
 
-                {/* Year */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3 relative group">
+                    <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Fiscal Year</label>
                     <div className="relative">
-                        <Calendar1 className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                        <Calendar1 className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-600" />
                         <select
                             value={filterYear}
                             onChange={handleFilterChange(setFilterYear, 'year')}
-                            className="w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                            className="w-full pl-12 pr-6 py-5 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-800 appearance-none focus:ring-4 focus:ring-green-500/10 shadow-inner"
                             disabled={loadingEmployees || !availableDates?.length}
                         >
                             {availableDates?.length ? (
@@ -90,52 +100,51 @@ export default function SearchFilters({
                                     <option key={y} value={y}>{y}</option>
                                 ))
                             ) : (
-                                <option value="" disabled>No records available</option>
+                                <option value="" disabled>No records</option>
                             )}
                         </select>
                     </div>
                 </div>
 
-                {/* Status */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3 relative group">
+                    <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Employment Status</label>
                     <div className="relative">
                         <select
                             value={status}
                             onChange={handleFilterChange(setStatus, 'status')}
-                            className="w-full pl-3 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
+                            className="w-full px-6 py-5 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-800 appearance-none focus:ring-4 focus:ring-green-500/10 shadow-inner"
                             disabled={loadingEmployees}
                         >
-                            <option value="">All</option>
+                            <option value="">All Status</option>
                             <option value="Permanent">Permanent</option>
                             <option value="JO">Job Order (JO)</option>
                         </select>
                     </div>
                 </div>
 
-                {/* Buttons */}
-                <div className="lg:col-span-3 flex gap-2">
+                {/* Search Button */}
+                <div className="lg:col-span-3 flex gap-3">
                     <button
                         onClick={handleSearch}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-5 rounded-lg transition shadow-sm flex items-center justify-center gap-2"
+                        className="flex-1 bg-green-700 hover:bg-green-800 text-white font-black uppercase tracking-widest text-xs py-5 px-6 rounded-2xl transition-all shadow-lg shadow-green-700/20 active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50"
                         disabled={loadingEmployees}
                     >
                         {loadingEmployees ? (
-                            <div className="flex items-center gap-2">
-                                <Loader2 className="w-4 h-4 animate-spin" /> Loading...
-                            </div>
+                            <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                             <>
-                                <Search className="w-4 h-4" /> Search
+                                <Zap className="w-4 h-4 fill-current" /> Search
                             </>
                         )}
                     </button>
 
                     <button
                         onClick={handleReset}
-                        className="px-5 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition shadow-sm"
+                        className="p-5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-2xl transition-all shadow-sm active:scale-95 group disabled:opacity-50"
                         disabled={loadingEmployees}
+                        title="Reset Filters"
                     >
-                        Reset
+                        <RotateCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500 text-gray-500" />
                     </button>
                 </div>
             </div>

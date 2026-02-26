@@ -1,4 +1,4 @@
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, ChevronRight, Users } from "lucide-react";
 
 export default function EmployeeList({
     employeeList,
@@ -10,11 +10,10 @@ export default function EmployeeList({
     filterYear,
     router,
     status,
-    loadingEmployees, // new prop
+    loadingEmployees,
 }) {
-    // Handle page navigation
     const goToPage = (page) => {
-        setSelectedEmployee(null); // reset selected employee
+        setSelectedEmployee(null);
         router.get(
             route("dtr.view"),
             {
@@ -32,50 +31,71 @@ export default function EmployeeList({
     };
 
     return (
-        <>
+        <div className="space-y-8 animate-in fade-in slide-in-from-left-5 duration-700">
+            <div className="flex items-center justify-between px-4">
+                <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                    <Users className="w-4 h-4 text-green-700" size={14} /> Personnel List
+                </h3>
+                <span className="text-[11px] font-black text-green-700 bg-green-50 px-2 py-1 rounded-lg uppercase tracking-widest">
+                    {employees?.total || 0} Total
+                </span>
+            </div>
+
             {loadingEmployees ? (
-                <div className="flex justify-center items-center py-16">
-                    <Loader2 className="w-10 h-10 animate-spin text-green-600" />
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[40px] border border-gray-100 shadow-sm">
+                    <Loader2 className="w-10 h-10 animate-spin text-green-700 mb-4" />
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-widest">Updating Matrix...</p>
                 </div>
             ) : employeeList && employeeList.length > 0 ? (
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
-                        <User className="w-5 h-5 text-green-600" /> Select Employee
-                    </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+                <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
                         {employeeList.map((emp) => (
                             <button
                                 key={emp.employee_name}
                                 onClick={() => setSelectedEmployee(emp.employee_name)}
-                                className={`p-4 rounded-lg border-2 text-left transition-all shadow-sm hover:shadow-md ${selectedEmployee === emp.employee_name
-                                        ? "border-green-600 bg-green-50 text-green-800 font-semibold ring-2 ring-green-200"
-                                        : "border-gray-200 bg-white hover:border-green-300"
+                                className={`group p-6 rounded-[32px] border-none text-left transition-all duration-300 relative overflow-hidden ${selectedEmployee === emp.employee_name
+                                    ? "bg-green-700 text-white shadow-xl shadow-green-700/20 scale-[1.02] z-10"
+                                    : "bg-white hover:bg-gray-50 text-gray-700 shadow-sm border border-gray-100/50"
                                     }`}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className={`w-3 h-3 rounded-full ${selectedEmployee === emp.employee_name
-                                                ? "bg-green-600"
-                                                : "bg-green-400"
-                                            }`}
-                                    ></div>
-                                    <span className="truncate text-sm">{emp.employee_name}</span>
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-4">
+                                        <div
+                                            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-colors ${selectedEmployee === emp.employee_name
+                                                ? "bg-white/10"
+                                                : "bg-gray-50 group-hover:bg-green-100"
+                                                }`}
+                                        >
+                                            <User size={18} className={selectedEmployee === emp.employee_name ? "text-white" : "text-green-700"} />
+                                        </div>
+                                        <div>
+                                            <p className={`text-xs font-black uppercase tracking-widest mb-0.5 ${selectedEmployee === emp.employee_name ? "text-green-50" : "text-gray-500"}`}>Personnel</p>
+                                            <span className="text-sm font-black tracking-tight block truncate max-w-[180px]">
+                                                {emp.employee_name}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${selectedEmployee === emp.employee_name ? "text-white translate-x-1" : "text-gray-400 group-hover:text-green-700"}`} />
                                 </div>
+                                {selectedEmployee === emp.employee_name && (
+                                    <div className="absolute -right-4 -bottom-4 bg-white/5 p-4 rounded-full">
+                                        <Users size={60} />
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
 
                     {/* Pagination */}
                     {employees?.last_page > 1 && (
-                        <div className="flex justify-center gap-2 mt-6 flex-wrap">
+                        <div className="flex justify-center gap-2 mt-10">
                             {Array.from({ length: employees.last_page }, (_, i) => i + 1).map((page) => (
                                 <button
                                     key={page}
                                     onClick={() => goToPage(page)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition ${employees.current_page === page
-                                            ? "bg-green-600 text-white"
-                                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                    className={`w-10 h-10 rounded-xl text-xs font-black transition-all ${employees.current_page === page
+                                        ? "bg-green-700 text-white shadow-lg shadow-green-700/20"
+                                        : "bg-white hover:bg-gray-50 text-gray-500 border border-gray-100"
                                         }`}
                                 >
                                     {page}
@@ -85,10 +105,11 @@ export default function EmployeeList({
                     )}
                 </div>
             ) : (
-                <div className="text-center text-gray-500 py-10 bg-gray-50 rounded-lg border border-gray-200">
-                    No employees found for the selected period.
+                <div className="text-center py-20 bg-white rounded-[40px] border border-gray-100 shadow-sm">
+                    <User className="w-12 h-12 mx-auto mb-4 text-gray-100" />
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No Personnel Detected</p>
                 </div>
             )}
-        </>
+        </div>
     );
 }
