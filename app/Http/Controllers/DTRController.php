@@ -500,6 +500,75 @@ class DTRController extends Controller
                 }
             }
 
+            $lateMinutes = null;
+            $undertimeMinutes = null;
+
+            if ($checkIn || $checkOut) {
+                $timeToMins = function ($t, $isPM = false) {
+                    if (!$t)
+                        return 0;
+                    $parts = explode(':', $t);
+                    $h = (int)$parts[0];
+                    $m = (int)$parts[1];
+
+                    if ($isPM && $h < 12)
+                        $h += 12;
+                    if (!$isPM && $h == 12)
+                        $h = 0;
+
+                    return ($h * 60) + $m;
+                };
+
+                // Work schedule depends on the day (1-4 is 10hr shift, others 8hr)
+                $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
+                $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
+                $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                $shiftLength = $schedEndMins - $schedStartMins;
+
+                $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
+                $outMins = $checkOut ? $timeToMins($checkOut, true) : null; // check out is PM
+
+                $effectiveStartMins = $schedStartMins;
+
+                // Flexi only on 10hr shift
+                if ($schedStartMins === (7 * 60) && $inMins !== null) {
+                    if ($inMins <= 480) {
+                        $effectiveStartMins = max($schedStartMins, $inMins);
+                    }
+                    else {
+                        $effectiveStartMins = 480;
+                    }
+                }
+
+                if ($inMins !== null) {
+                    $late = max(0, $inMins - $effectiveStartMins);
+                    if ($late > 0)
+                        $lateMinutes = $late;
+                }
+
+                if ($outMins !== null) {
+                    $effectiveEndMins = $effectiveStartMins + $shiftLength;
+                    $under = max(0, $effectiveEndMins - $outMins);
+                    if ($under > 0)
+                        $undertimeMinutes = $under;
+                }
+            }
+
+            $formatMins = function ($mins) {
+                if (!$mins)
+                    return '';
+                $h = floor($mins / 60);
+                $m = $mins % 60;
+                if ($h > 0 && $m > 0)
+                    return "{$h} hr {$m} min";
+                if ($h > 0)
+                    return "{$h} hr";
+                return "{$m} min";
+            };
+
+            $lateStr = $formatMins($lateMinutes);
+            $underStr = $formatMins($undertimeMinutes);
+
             // First table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
             $templateProcessor->setValue("d1#{$day}", $weekday);
@@ -507,6 +576,8 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout1#{$day}", $breakOut);
             $templateProcessor->setValue("bin1#{$day}", $breakIn);
             $templateProcessor->setValue("out1#{$day}", $checkOut);
+            $templateProcessor->setValue("late1#{$day}", $lateStr);
+            $templateProcessor->setValue("under1#{$day}", $underStr);
 
             // Second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
@@ -515,6 +586,8 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout2#{$day}", $breakOut);
             $templateProcessor->setValue("bin2#{$day}", $breakIn);
             $templateProcessor->setValue("out2#{$day}", $checkOut);
+            $templateProcessor->setValue("late2#{$day}", $lateStr);
+            $templateProcessor->setValue("under2#{$day}", $underStr);
         }
 
         // Save DOCX (no conversion)
@@ -583,6 +656,73 @@ class DTRController extends Controller
                 }
             }
 
+            $lateMinutes = null;
+            $undertimeMinutes = null;
+
+            if ($checkIn || $checkOut) {
+                $timeToMins = function ($t, $isPM = false) {
+                    if (!$t)
+                        return 0;
+                    $parts = explode(':', $t);
+                    $h = (int)$parts[0];
+                    $m = (int)$parts[1];
+
+                    if ($isPM && $h < 12)
+                        $h += 12;
+                    if (!$isPM && $h == 12)
+                        $h = 0;
+
+                    return ($h * 60) + $m;
+                };
+
+                $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
+                $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
+                $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                $shiftLength = $schedEndMins - $schedStartMins;
+
+                $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
+                $outMins = $checkOut ? $timeToMins($checkOut, true) : null; // check out is PM
+
+                $effectiveStartMins = $schedStartMins;
+
+                if ($schedStartMins === (7 * 60) && $inMins !== null) {
+                    if ($inMins <= 480) {
+                        $effectiveStartMins = max($schedStartMins, $inMins);
+                    }
+                    else {
+                        $effectiveStartMins = 480;
+                    }
+                }
+
+                if ($inMins !== null) {
+                    $late = max(0, $inMins - $effectiveStartMins);
+                    if ($late > 0)
+                        $lateMinutes = $late;
+                }
+
+                if ($outMins !== null) {
+                    $effectiveEndMins = $effectiveStartMins + $shiftLength;
+                    $under = max(0, $effectiveEndMins - $outMins);
+                    if ($under > 0)
+                        $undertimeMinutes = $under;
+                }
+            }
+
+            $formatMins = function ($mins) {
+                if (!$mins)
+                    return '';
+                $h = floor($mins / 60);
+                $m = $mins % 60;
+                if ($h > 0 && $m > 0)
+                    return "{$h} hr {$m} min";
+                if ($h > 0)
+                    return "{$h} hr";
+                return "{$m} min";
+            };
+
+            $lateStr = $formatMins($lateMinutes);
+            $underStr = $formatMins($undertimeMinutes);
+
             // Fill first table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
             $templateProcessor->setValue("d1#{$day}", $weekday);
@@ -590,6 +730,8 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout1#{$day}", $breakOut);
             $templateProcessor->setValue("bin1#{$day}", $breakIn);
             $templateProcessor->setValue("out1#{$day}", $checkOut);
+            $templateProcessor->setValue("late1#{$day}", $lateStr);
+            $templateProcessor->setValue("under1#{$day}", $underStr);
 
             // Fill second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
@@ -598,6 +740,8 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout2#{$day}", $breakOut);
             $templateProcessor->setValue("bin2#{$day}", $breakIn);
             $templateProcessor->setValue("out2#{$day}", $checkOut);
+            $templateProcessor->setValue("late2#{$day}", $lateStr);
+            $templateProcessor->setValue("under2#{$day}", $underStr);
         }
 
         // ✅ Save temporary DOCX file

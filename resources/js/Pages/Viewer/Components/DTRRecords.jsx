@@ -156,6 +156,15 @@ export default function DTRRecords({
                                                         let lateMinutes = null;
                                                         let undertimeMinutes = null;
 
+                                                        const formatMins = (mins) => {
+                                                            if (!mins) return '';
+                                                            const h = Math.floor(mins / 60);
+                                                            const m = mins % 60;
+                                                            if (h > 0 && m > 0) return `${h} hr ${m} min`;
+                                                            if (h > 0) return `${h} hr`;
+                                                            return `${m} min`;
+                                                        };
+
                                                         if (isValidTime(actualIn) || isValidTime(actualOut)) {
                                                             const timeToMins = (t) => {
                                                                 if (!t) return 0;
@@ -219,10 +228,10 @@ export default function DTRRecords({
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-5 py-5 text-center">
-                                                                    {lateMinutes && lateMinutes > 0 ? `${lateMinutes} min` : ''}
+                                                                    {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
                                                                 </td>
                                                                 <td className="px-5 py-5 text-center">
-                                                                    {undertimeMinutes && undertimeMinutes > 0 ? `${undertimeMinutes} min` : ''}
+                                                                    {undertimeMinutes && undertimeMinutes > 0 ? formatMins(undertimeMinutes) : ''}
                                                                 </td>
                                                             </tr>
                                                         );
