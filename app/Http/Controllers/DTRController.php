@@ -477,7 +477,6 @@ class DTRController extends Controller
             $logs = $records[$date->format('Y-m-d')] ?? collect();
 
             $checkIn = $breakOut = $breakIn = $checkOut = '';
-            $checkIn24 = $checkOut24 = '';
 
             foreach ($logs as $log) {
                 $time24 = substr($log->log_time, 0, 5);
@@ -487,7 +486,6 @@ class DTRController extends Controller
 
                 if ($hour >= 5 && $hour <= 11) {
                     $checkIn = $time12;
-                    $checkIn24 = $time24;
                 }
                 elseif ($hour == 12) {
                     if (empty($breakOut)) {
@@ -499,36 +497,8 @@ class DTRController extends Controller
                 }
                 elseif ($hour >= 13 && $hour <= 21) {
                     $checkOut = $time12;
-                    $checkOut24 = $time24;
                 }
             }
-
-            $late = $undertime = 0;
-            if ($checkIn && $checkIn24) {
-                $inParts = explode(':', $checkIn24);
-                $inMins = $inParts[0] * 60 + $inParts[1];
-                $eightAM = 8 * 60;
-
-                if ($inMins > $eightAM) {
-                    $late = $inMins - $eightAM;
-                }
-
-                if ($checkOut && $checkOut24) {
-                    $outParts = explode(':', $checkOut24);
-                    $outMins = $outParts[0] * 60 + $outParts[1];
-
-                    $requiredOut = ($inMins <= $eightAM)
-                        ? ($inMins + 11 * 60)
-                        : ($eightAM + 11 * 60);
-
-                    if ($outMins < $requiredOut) {
-                        $undertime = $requiredOut - $outMins;
-                    }
-                }
-            }
-
-            $lateVal = $late > 0 ? $late : '';
-            $underVal = $undertime > 0 ? $undertime : '';
 
             // First table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
@@ -537,8 +507,6 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout1#{$day}", $breakOut);
             $templateProcessor->setValue("bin1#{$day}", $breakIn);
             $templateProcessor->setValue("out1#{$day}", $checkOut);
-            $templateProcessor->setValue("late1#{$day}", $lateVal);
-            $templateProcessor->setValue("under1#{$day}", $underVal);
 
             // Second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
@@ -547,8 +515,6 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout2#{$day}", $breakOut);
             $templateProcessor->setValue("bin2#{$day}", $breakIn);
             $templateProcessor->setValue("out2#{$day}", $checkOut);
-            $templateProcessor->setValue("late2#{$day}", $lateVal);
-            $templateProcessor->setValue("under2#{$day}", $underVal);
         }
 
         // Save DOCX (no conversion)
@@ -594,7 +560,6 @@ class DTRController extends Controller
             $logs = $records[$date->format('Y-m-d')] ?? collect();
 
             $checkIn = $breakOut = $breakIn = $checkOut = '';
-            $checkIn24 = $checkOut24 = '';
 
             foreach ($logs as $log) {
                 $time24 = substr($log->log_time, 0, 5);
@@ -604,7 +569,6 @@ class DTRController extends Controller
 
                 if ($hour >= 5 && $hour <= 11) {
                     $checkIn = $time12;
-                    $checkIn24 = $time24;
                 }
                 elseif ($hour == 12) {
                     if (empty($breakOut)) {
@@ -616,36 +580,8 @@ class DTRController extends Controller
                 }
                 elseif ($hour >= 13 && $hour <= 21) {
                     $checkOut = $time12;
-                    $checkOut24 = $time24;
                 }
             }
-
-            $late = $undertime = 0;
-            if ($checkIn && $checkIn24) {
-                $inParts = explode(':', $checkIn24);
-                $inMins = $inParts[0] * 60 + $inParts[1];
-                $eightAM = 8 * 60;
-
-                if ($inMins > $eightAM) {
-                    $late = $inMins - $eightAM;
-                }
-
-                if ($checkOut && $checkOut24) {
-                    $outParts = explode(':', $checkOut24);
-                    $outMins = $outParts[0] * 60 + $outParts[1];
-
-                    $requiredOut = ($inMins <= $eightAM)
-                        ? ($inMins + 11 * 60)
-                        : ($eightAM + 11 * 60);
-
-                    if ($outMins < $requiredOut) {
-                        $undertime = $requiredOut - $outMins;
-                    }
-                }
-            }
-
-            $lateVal = $late > 0 ? $late : '';
-            $underVal = $undertime > 0 ? $undertime : '';
 
             // Fill first table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
@@ -654,8 +590,6 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout1#{$day}", $breakOut);
             $templateProcessor->setValue("bin1#{$day}", $breakIn);
             $templateProcessor->setValue("out1#{$day}", $checkOut);
-            $templateProcessor->setValue("late1#{$day}", $lateVal);
-            $templateProcessor->setValue("under1#{$day}", $underVal);
 
             // Fill second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
@@ -664,8 +598,6 @@ class DTRController extends Controller
             $templateProcessor->setValue("bout2#{$day}", $breakOut);
             $templateProcessor->setValue("bin2#{$day}", $breakIn);
             $templateProcessor->setValue("out2#{$day}", $checkOut);
-            $templateProcessor->setValue("late2#{$day}", $lateVal);
-            $templateProcessor->setValue("under2#{$day}", $underVal);
         }
 
         // ✅ Save temporary DOCX file

@@ -1,5 +1,29 @@
 import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2 } from "lucide-react";
 
+// Helper functions for shift schedules and flexi time
+const getScheduledTimes = (date) => {
+    const day = new Date(date).getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+    // 10‑hour shift Monday‑Thursday
+    if (day >= 1 && day <= 4) {
+        return { start: "07:00", end: "18:00" };
+    }
+    // 8‑hour shift Monday‑Friday (default)
+    return { start: "08:00", end: "17:00" };
+};
+
+const isFlexiEligible = (checkIn, scheduledStart) => {
+    if (!checkIn) return false;
+    const [h, m] = checkIn.split(":").map(Number);
+    const minutes = h * 60 + m;
+    // Flexi window is 07:00‑08:00 and only when scheduled start is 07:00 (10‑hour shift)
+    return scheduledStart === "07:00" && minutes >= 420 && minutes < 480;
+};
+
+const minutesDiff = (a, b) => {
+    const [ah, am] = a.split(":").map(Number);
+    const [bh, bm] = b.split(":").map(Number);
+    return (ah * 60 + am) - (bh * 60 + bm);
+};
 export default function DTRRecords({
     selectedEmployee,
     dtrLoading,
@@ -117,6 +141,54 @@ export default function DTRRecords({
                                                     {Object.entries(days).map(([date, data]) => {
                                                         const { inTime, breakOut, breakIn, outTime } = processLogs(data.logs);
                                                         const dayNum = new Date(date).getDate();
+                                                        // Calculate scheduled times and flexi eligibility
+                                                        const scheduled = getScheduledTimes(date);
+                                                        const getFormatTime = (t) => {
+                                                            if (!t) return null;
+                                                            if (typeof t === 'string' && /^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
+                                                            const d = new Date(t);
+                                                            return !isNaN(d.getTime()) ? d.toTimeString().substring(0, 5) : null;
+                                                        };
+                                                        const actualIn = getFormatTime(inTime);
+                                                        const actualOut = getFormatTime(outTime);
+                                                        const isValidTime = (t) => t && /^\d{2}:\d{2}$/.test(t);
+
+                                                        let lateMinutes = null;
+                                                        let undertimeMinutes = null;
+
+                                                        if (isValidTime(actualIn) || isValidTime(actualOut)) {
+                                                            const timeToMins = (t) => {
+                                                                if (!t) return 0;
+                                                                const [h, m] = t.split(':').map(Number);
+                                                                return h * 60 + m;
+                                                            };
+
+                                                            const inMins = actualIn ? timeToMins(actualIn) : null;
+                                                            const outMins = actualOut ? timeToMins(actualOut) : null;
+                                                            const schedStartMins = timeToMins(scheduled.start);
+                                                            const schedEndMins = timeToMins(scheduled.end);
+                                                            const shiftLength = schedEndMins - schedStartMins;
+
+                                                            let effectiveStartMins = schedStartMins;
+
+                                                            // Apply Flexi Time ONLY for the 10-hour shift (07:00 am)
+                                                            if (scheduled.start === "07:00" && inMins !== null) {
+                                                                if (inMins <= 480) { // Up to 8:00 AM (480 mins)
+                                                                    effectiveStartMins = Math.max(schedStartMins, inMins);
+                                                                } else {
+                                                                    effectiveStartMins = 480; // Max flexi offset is 60 mins
+                                                                }
+                                                            }
+
+                                                            if (inMins !== null) {
+                                                                lateMinutes = Math.max(0, inMins - effectiveStartMins);
+                                                            }
+
+                                                            if (outMins !== null) {
+                                                                const effectiveEndMins = effectiveStartMins + shiftLength;
+                                                                undertimeMinutes = Math.max(0, effectiveEndMins - outMins);
+                                                            }
+                                                        }
 
                                                         return (
                                                             <tr key={date} className="hover:bg-white transition-all duration-300 group/tr">
@@ -145,6 +217,12 @@ export default function DTRRecords({
                                                                     <span className={`font-mono font-black text-xs px-2 py-1 rounded-lg ${outTime ? 'text-red-600 bg-red-50' : 'text-gray-300'}`}>
                                                                         {format12Hour(outTime) || '--:--'}
                                                                     </span>
+                                                                </td>
+                                                                <td className="px-5 py-5 text-center">
+                                                                    {lateMinutes && lateMinutes > 0 ? `${lateMinutes} min` : ''}
+                                                                </td>
+                                                                <td className="px-5 py-5 text-center">
+                                                                    {undertimeMinutes && undertimeMinutes > 0 ? `${undertimeMinutes} min` : ''}
                                                                 </td>
                                                             </tr>
                                                         );
