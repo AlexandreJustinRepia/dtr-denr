@@ -1,7 +1,10 @@
 import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2 } from "lucide-react";
 
 // Helper functions for shift schedules and flexi time
-const getScheduledTimes = (date) => {
+const getScheduledTimes = (date, override = null) => {
+    if (override === '10HR') return { start: "07:00", end: "18:00" };
+    if (override === '8HR') return { start: "08:00", end: "17:00" };
+
     const day = new Date(date).getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
     // 10‑hour shift Monday‑Thursday
     if (day >= 1 && day <= 4) {
@@ -31,6 +34,7 @@ export default function DTRRecords({
     downloadLoading,
     handleDownload,
     handleDownloadDocx,
+    updateSchedule,
     processLogs,
     format12Hour
 }) {
@@ -141,8 +145,8 @@ export default function DTRRecords({
                                                     {Object.entries(days).map(([date, data]) => {
                                                         const { inTime, breakOut, breakIn, outTime } = processLogs(data.logs);
                                                         const dayNum = new Date(date).getDate();
-                                                        // Calculate scheduled times and flexi eligibility
-                                                        const scheduled = getScheduledTimes(date);
+                                                        // Calculate scheduled times and flexi eligibility 
+                                                        const scheduled = getScheduledTimes(date, data.schedule_type);
                                                         const getFormatTime = (t) => {
                                                             if (!t) return null;
                                                             if (typeof t === 'string' && /^\d{2}:\d{2}/.test(t)) return t.substring(0, 5);
@@ -204,7 +208,21 @@ export default function DTRRecords({
                                                                 <td className="px-8 py-5">
                                                                     <div className="flex items-center gap-3">
                                                                         <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center font-black text-gray-900 text-[11px] shadow-sm">{dayNum}</span>
-                                                                        <span className="text-xs font-black text-gray-500 uppercase tracking-widest group-hover/tr:text-green-600 transition-colors">{data.weekday}</span>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-xs font-black text-gray-500 uppercase tracking-widest group-hover/tr:text-green-600 transition-colors">{data.weekday}</span>
+                                                                            <button 
+                                                                                onClick={() => updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
+                                                                                className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border transition-all ${
+                                                                                    data.schedule_type === '10HR' 
+                                                                                        ? 'bg-green-50 text-green-700 border-green-100' 
+                                                                                        : data.schedule_type === '8HR'
+                                                                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                                                                            : 'bg-gray-50 text-gray-400 border-gray-100 opacity-60 hover:opacity-100'
+                                                                                }`}
+                                                                            >
+                                                                                {data.schedule_type === '10HR' ? '10H Shift' : data.schedule_type === '8HR' ? '8H Shift' : 'Auto'}
+                                                                            </button>
+                                                                        </div>
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-5 py-5 text-center">

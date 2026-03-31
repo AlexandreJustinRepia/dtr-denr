@@ -95,21 +95,20 @@ class DTRController extends Controller
                 'record_count' => $parsed['totalRecords'],
             ]);
             $batchId = $batch->id;
-        }
-        else {
+        } else {
             $batchId = $existing->id;
         }
 
         // ---- 4. Return ------------------------------------------------------------
         return response()->json([
             'records' => $parsed['records'],
-            'alreadySaved' => (bool)$existing,
+            'alreadySaved' => (bool) $existing,
             'batchId' => $batchId,
             'duration' => $duration,
             'recordCount' => $parsed['totalRecords'],
             'message' => $existing
-            ? 'This log was already processed.'
-            : 'DTR records have been successfully saved to the database.',
+                ? 'This log was already processed.'
+                : 'DTR records have been successfully saved to the database.',
         ]);
     }
 
@@ -193,7 +192,6 @@ class DTRController extends Controller
             'ERA BALINGIT CASTRO',
             'OFELIA SARDENIA CONAG',
             'MARICRIS Q. PEREZ',
-            'JAN MICHAEL CAMPUED'
         ];
 
         $formatName = function ($rawName) use ($exceptions) {
@@ -232,11 +230,11 @@ class DTRController extends Controller
                 continue;
             }
 
-            $month = (int)$m[1];
-            $day = (int)$m[2];
-            $year = (int)$m[3];
-            $hour = (int)$m[4];
-            $min = (int)$m[5];
+            $month = (int) $m[1];
+            $day = (int) $m[2];
+            $year = (int) $m[3];
+            $hour = (int) $m[4];
+            $min = (int) $m[5];
             $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
 
             if ($ampm === 'PM' && $hour < 12)
@@ -278,8 +276,7 @@ class DTRController extends Controller
                         elseif ($hour == 12) {
                             if (!$breakOut) {
                                 $breakOut = $time;
-                            }
-                            else {
+                            } else {
                                 $breakIn = $time;
                             }
                         }
@@ -368,8 +365,7 @@ class DTRController extends Controller
                 $latest = $availableDates->sortByDesc(fn($d) => $d->year . str_pad($d->month, 2, '0', STR_PAD_LEFT))->first();
                 $monthFilter = $monthFilter ?: $latest->month;
                 $yearFilter = $yearFilter ?: $latest->year;
-            }
-            else {
+            } else {
                 $monthFilter = $monthFilter ?: date('n');
                 $yearFilter = $yearFilter ?: date('Y');
             }
@@ -389,45 +385,46 @@ class DTRController extends Controller
         // Build records for paginated employees
         $records = collect($employees->items())
             ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter) {
-            $logs = DTRRecord::where('employee_name', $emp->employee_name)
-                ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
-                ->whereYear('log_date', $yearFilter)
-                ->whereMonth('log_date', $monthFilter)
-                ->orderBy('log_date')
-                ->orderBy('log_time')
-                ->get()
-                ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
+                $logs = DTRRecord::where('employee_name', $emp->employee_name)
+                    ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
+                    ->whereYear('log_date', $yearFilter)
+                    ->whereMonth('log_date', $monthFilter)
+                    ->orderBy('log_date')
+                    ->orderBy('log_time')
+                    ->get()
+                    ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
 
-            $result = [];
+                $result = [];
 
-            foreach ($logs as $monthKey => $daysGroup) {
-                $year = (int)substr($monthKey, 0, 4);
-                $month = (int)substr($monthKey, 5, 2);
-                $monthName = Carbon::create($year, $month, 1)->format('F Y');
-                $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+                foreach ($logs as $monthKey => $daysGroup) {
+                    $year = (int) substr($monthKey, 0, 4);
+                    $month = (int) substr($monthKey, 5, 2);
+                    $monthName = Carbon::create($year, $month, 1)->format('F Y');
+                    $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $month, $year);
 
-                $structured = [];
-                for ($day = 1; $day <= $daysInMonth; $day++) {
-                    $date = Carbon::create($year, $month, $day);
-                    $dateStr = $date->format('Y-m-d');
-                    $weekday = $date->format('D');
+                    $structured = [];
+                    for ($day = 1; $day <= $daysInMonth; $day++) {
+                        $date = Carbon::create($year, $month, $day);
+                        $dateStr = $date->format('Y-m-d');
+                        $weekday = $date->format('D');
 
-                    $dayLogs = $daysGroup->where('log_date', $dateStr)
-                        ->map(fn($log) => ['time' => $log->log_time])
-                        ->values()
-                        ->toArray();
+                        $dayLogs = $daysGroup->where('log_date', $dateStr)
+                            ->map(fn($log) => ['time' => $log->log_time])
+                            ->values()
+                            ->toArray();
 
-                    $structured[$dateStr] = [
-                        'weekday' => $weekday,
-                        'logs' => $dayLogs,
-                    ];
+                        $structured[$dateStr] = [
+                            'weekday' => $weekday,
+                            'logs' => $dayLogs,
+                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type
+                        ];
+                    }
+
+                    $result[$monthName] = $structured;
                 }
 
-                $result[$monthName] = $structured;
-            }
-
-            return [$emp->employee_name => $result];
-        })
+                return [$emp->employee_name => $result];
+            })
             ->toArray();
 
         return Inertia::render('Viewer/DTRLanding', [
@@ -435,8 +432,8 @@ class DTRController extends Controller
             'employees' => $employees->toArray(),
             'filters' => [
                 'search' => $search,
-                'month' => (int)$monthFilter,
-                'year' => (int)$yearFilter,
+                'month' => (int) $monthFilter,
+                'year' => (int) $yearFilter,
                 'status' => $statusFilter,
             ],
             'availableDates' => $availableDates,
@@ -450,6 +447,14 @@ class DTRController extends Controller
         $monthName = $parsedMonth->format('F Y');
         $yearMonth = $parsedMonth->format('Y-m');
 
+        // Check status for template selection
+        $status = DTRRecord::where('employee_name', $employee)
+            ->whereMonth('log_date', $parsedMonth->month)
+            ->whereYear('log_date', $parsedMonth->year)
+            ->value('status');
+
+        $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
+        $templatePath = storage_path("app/templates/{$templateFile}");
         $records = DTRRecord::where('employee_name', $employee)
             ->whereMonth('log_date', $parsedMonth->month)
             ->whereYear('log_date', $parsedMonth->year)
@@ -458,7 +463,6 @@ class DTRController extends Controller
             ->get()
             ->groupBy('log_date');
 
-        $templatePath = storage_path('app/templates/Sample.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
         // Replace placeholders
@@ -481,21 +485,18 @@ class DTRController extends Controller
             foreach ($logs as $log) {
                 $time24 = substr($log->log_time, 0, 5);
                 $timeObj = Carbon::createFromFormat('H:i', $time24);
-                $hour = (int)$timeObj->format('H');
+                $hour = (int) $timeObj->format('H');
                 $time12 = $timeObj->format('g:i');
 
                 if ($hour >= 5 && $hour <= 11) {
                     $checkIn = $time12;
-                }
-                elseif ($hour == 12) {
+                } elseif ($hour == 12) {
                     if (empty($breakOut)) {
                         $breakOut = $time12;
-                    }
-                    else {
+                    } else {
                         $breakIn = $time12;
                     }
-                }
-                elseif ($hour >= 13 && $hour <= 21) {
+                } elseif ($hour >= 13 && $hour <= 21) {
                     $checkOut = $time12;
                 }
             }
@@ -508,8 +509,8 @@ class DTRController extends Controller
                     if (!$t)
                         return 0;
                     $parts = explode(':', $t);
-                    $h = (int)$parts[0];
-                    $m = (int)$parts[1];
+                    $h = (int) $parts[0];
+                    $m = (int) $parts[1];
 
                     if ($isPM && $h < 12)
                         $h += 12;
@@ -521,8 +522,18 @@ class DTRController extends Controller
 
                 // Work schedule depends on the day (1-4 is 10hr shift, others 8hr)
                 $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
-                $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
-                $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                
+                if ($daySchedule === '10HR') {
+                    $schedStartMins = 7 * 60;
+                    $schedEndMins = 18 * 60;
+                } elseif ($daySchedule === '8HR') {
+                    $schedStartMins = 8 * 60;
+                    $schedEndMins = 17 * 60;
+                } else {
+                    $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
+                    $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                }
+                
                 $shiftLength = $schedEndMins - $schedStartMins;
 
                 $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
@@ -534,8 +545,7 @@ class DTRController extends Controller
                 if ($schedStartMins === (7 * 60) && $inMins !== null) {
                     if ($inMins <= 480) {
                         $effectiveStartMins = max($schedStartMins, $inMins);
-                    }
-                    else {
+                    } else {
                         $effectiveStartMins = 480;
                     }
                 }
@@ -599,6 +609,37 @@ class DTRController extends Controller
     }
 
 
+    public function updateDaySchedule()
+    {
+        $employee = request('employee');
+        $date = request('date');
+        $type = request('type'); // '10HR', '8HR', or null
+
+        DTRRecord::where('employee_name', $employee)
+            ->where('log_date', $date)
+            ->update(['schedule_type' => $type]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    private function getSofficePath()
+    {
+        $paths = [
+            'C:\Program Files\LibreOffice\program\soffice.exe',
+            'C:\Program Files (x86)\LibreOffice\program\soffice.exe',
+            'C:\Program Files\LibreOffice 7\program\soffice.exe',
+            'C:\Program Files\LibreOffice 24\program\soffice.exe',
+        ];
+
+        foreach ($paths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
     public function generatePdf($employee, $month)
     {
         $parsedMonth = Carbon::parse($month);
@@ -606,6 +647,14 @@ class DTRController extends Controller
         $monthName = $parsedMonth->format('F Y');
         $yearMonth = $parsedMonth->format('Y-m');
 
+        // Check status for template selection
+        $status = DTRRecord::where('employee_name', $employee)
+            ->whereMonth('log_date', $parsedMonth->month)
+            ->whereYear('log_date', $parsedMonth->year)
+            ->value('status');
+
+        $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
+        $templatePath = storage_path("app/templates/{$templateFile}");
         $records = DTRRecord::where('employee_name', $employee)
             ->whereMonth('log_date', $parsedMonth->month)
             ->whereYear('log_date', $parsedMonth->year)
@@ -614,7 +663,6 @@ class DTRController extends Controller
             ->get()
             ->groupBy('log_date');
 
-        $templatePath = storage_path('app/templates/Sample.docx');
         $templateProcessor = new TemplateProcessor($templatePath);
 
         // Replace placeholders for employee name and month
@@ -629,29 +677,30 @@ class DTRController extends Controller
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
+            $dateStr = $date->format('Y-m-d');
             $weekday = $date->format('D');
-            $logs = $records[$date->format('Y-m-d')] ?? collect();
+            $logs = $records[$dateStr] ?? collect();
+
+            // Handle per-day schedule toggle
+            $daySchedule = $logs->first()?->schedule_type;
 
             $checkIn = $breakOut = $breakIn = $checkOut = '';
 
             foreach ($logs as $log) {
                 $time24 = substr($log->log_time, 0, 5);
                 $timeObj = Carbon::createFromFormat('H:i', $time24);
-                $hour = (int)$timeObj->format('H');
+                $hour = (int) $timeObj->format('H');
                 $time12 = $timeObj->format('g:i');
 
                 if ($hour >= 5 && $hour <= 11) {
                     $checkIn = $time12;
-                }
-                elseif ($hour == 12) {
+                } elseif ($hour == 12) {
                     if (empty($breakOut)) {
                         $breakOut = $time12;
-                    }
-                    else {
+                    } else {
                         $breakIn = $time12;
                     }
-                }
-                elseif ($hour >= 13 && $hour <= 21) {
+                } elseif ($hour >= 13 && $hour <= 21) {
                     $checkOut = $time12;
                 }
             }
@@ -664,8 +713,8 @@ class DTRController extends Controller
                     if (!$t)
                         return 0;
                     $parts = explode(':', $t);
-                    $h = (int)$parts[0];
-                    $m = (int)$parts[1];
+                    $h = (int) $parts[0];
+                    $m = (int) $parts[1];
 
                     if ($isPM && $h < 12)
                         $h += 12;
@@ -676,8 +725,18 @@ class DTRController extends Controller
                 };
 
                 $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
-                $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
-                $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+
+                if ($daySchedule === '10HR') {
+                    $schedStartMins = 7 * 60;
+                    $schedEndMins = 18 * 60;
+                } elseif ($daySchedule === '8HR') {
+                    $schedStartMins = 8 * 60;
+                    $schedEndMins = 17 * 60;
+                } else {
+                    $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
+                    $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                }
+
                 $shiftLength = $schedEndMins - $schedStartMins;
 
                 $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
@@ -688,8 +747,7 @@ class DTRController extends Controller
                 if ($schedStartMins === (7 * 60) && $inMins !== null) {
                     if ($inMins <= 480) {
                         $effectiveStartMins = max($schedStartMins, $inMins);
-                    }
-                    else {
+                    } else {
                         $effectiveStartMins = 480;
                     }
                 }
@@ -751,7 +809,12 @@ class DTRController extends Controller
         // ✅ Convert DOCX → PDF using LibreOffice headless (Windows)
         $outputPdf = storage_path("app/public/DTR_{$employee}_{$month}.pdf");
 
-        $command = '"C:\Program Files\LibreOffice\program\soffice.exe" --headless --convert-to pdf "' . $outputDocx . '" --outdir "' . dirname($outputPdf) . '"';
+        $soffice = $this->getSofficePath();
+        if (!$soffice) {
+            return response()->json(['error' => 'LibreOffice (soffice.exe) not found on server. Please check installation.'], 500);
+        }
+
+        $command = '"' . $soffice . '" --headless --convert-to pdf "' . $outputDocx . '" --outdir "' . dirname($outputPdf) . '"';
         exec($command);
 
         // ✅ Delete the DOCX after conversion (optional but cleaner)
@@ -777,8 +840,8 @@ class DTRController extends Controller
         $result = [];
 
         foreach ($logs as $monthKey => $daysGroup) {
-            $yearNum = (int)substr($monthKey, 0, 4);
-            $monthNum = (int)substr($monthKey, 5, 2);
+            $yearNum = (int) substr($monthKey, 0, 4);
+            $monthNum = (int) substr($monthKey, 5, 2);
             $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
 
             $structured = [];
@@ -794,6 +857,7 @@ class DTRController extends Controller
                 $structured[$dateStr] = [
                     'weekday' => $weekday,
                     'logs' => $dayLogs,
+                    'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type
                 ];
             }
 

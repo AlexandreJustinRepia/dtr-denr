@@ -102,6 +102,16 @@ export default function DTRLanding({ employees, filters, availableDates }) {
         }
     };
 
+    const updateSchedule = async (employee, date, type) => {
+        try {
+            await axios.post('/update-schedule', { employee, date, type });
+            handleEmployeeSelect(employee);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update schedule.');
+        }
+    };
+
     const format12Hour = (time) => {
         if (!time) return '';
         let [hour, minute] = time.split(':').map(Number);
@@ -235,6 +245,7 @@ export default function DTRLanding({ employees, filters, availableDates }) {
                             downloadLoading={downloadLoading}
                             handleDownload={handleDownload}
                             handleDownloadDocx={handleDownloadDocx}
+                            updateSchedule={updateSchedule}
                             processLogs={processLogs}
                             format12Hour={format12Hour}
                         />

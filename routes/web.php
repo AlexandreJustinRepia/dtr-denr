@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::get('/generate-dtr/{employee}/{month}', [DTRController::class , 'generatePdf'])->name('dtr.generate');
     Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class , 'fetchEmployeeDTR'])
         ->name('dtr.fetch');
+    Route::post('/update-schedule', [DTRController::class , 'updateDaySchedule'])->name('dtr.update-schedule');
 });
 
 
