@@ -2,16 +2,16 @@ import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2 } from
 
 // Helper functions for shift schedules and flexi time
 const getScheduledTimes = (date, override = null) => {
-    if (override === '10HR') return { start: "07:00", end: "18:00" };
-    if (override === '8HR') return { start: "08:00", end: "17:00" };
+    if (override === '10HR') return { start: "07:00", end: "18:00", latest: "08:00" };
+    if (override === '8HR') return { start: "08:00", end: "17:00", latest: "09:00" };
 
     const day = new Date(date).getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
     // 10‑hour shift Monday‑Thursday
     if (day >= 1 && day <= 4) {
-        return { start: "07:00", end: "18:00" };
+        return { start: "07:00", end: "18:00", latest: "08:00" };
     }
-    // 8‑hour shift Monday‑Friday (default)
-    return { start: "08:00", end: "17:00" };
+    // 8‑hour shift Friday
+    return { start: "08:00", end: "17:00", latest: "09:00" };
 };
 
 const isFlexiEligible = (checkIn, scheduledStart) => {
@@ -180,26 +180,24 @@ export default function DTRRecords({
                                                             const outMins = actualOut ? timeToMins(actualOut) : null;
                                                             const schedStartMins = timeToMins(scheduled.start);
                                                             const schedEndMins = timeToMins(scheduled.end);
+                                                            const latestStartMins = timeToMins(scheduled.latest);
                                                             const shiftLength = schedEndMins - schedStartMins;
 
-                                                            let effectiveStartMins = schedStartMins;
-
-                                                            // Apply Flexi Time ONLY for the 10-hour shift (07:00 am)
-                                                            if (scheduled.start === "07:00" && inMins !== null) {
-                                                                if (inMins <= 480) { // Up to 8:00 AM (480 mins)
-                                                                    effectiveStartMins = Math.max(schedStartMins, inMins);
-                                                                } else {
-                                                                    effectiveStartMins = 480; // Max flexi offset is 60 mins
-                                                                }
-                                                            }
-
                                                             if (inMins !== null) {
-                                                                lateMinutes = Math.max(0, inMins - effectiveStartMins);
-                                                            }
+                                                                // 1. Calculate Late (strictly based on the latest allowed window)
+                                                                const late = Math.max(0, inMins - latestStartMins);
+                                                                if (late > 0) lateMinutes = late;
 
-                                                            if (outMins !== null) {
-                                                                const effectiveEndMins = effectiveStartMins + shiftLength;
-                                                                undertimeMinutes = Math.max(0, effectiveEndMins - outMins);
+                                                                // 2. Calculate Effective Start for Duration
+                                                                // 8H allows 6AM (360), 10H strictly 7AM (420)
+                                                                const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
+                                                                const effectiveStartMins = Math.max(earliestStart, inMins);
+
+                                                                // 3. Calculate Undertime (must fulfill requested shift duration)
+                                                                if (outMins !== null) {
+                                                                    const requiredEndMins = effectiveStartMins + shiftLength;
+                                                                    undertimeMinutes = Math.max(0, requiredEndMins - outMins);
+                                                                }
                                                             }
                                                         }
 

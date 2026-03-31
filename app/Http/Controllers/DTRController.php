@@ -477,8 +477,12 @@ class DTRController extends Controller
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
+            $dateStr = $date->format('Y-m-d');
             $weekday = $date->format('D');
-            $logs = $records[$date->format('Y-m-d')] ?? collect();
+            $logs = $records[$dateStr] ?? collect();
+
+            // Handle per-day schedule toggle
+            $daySchedule = $logs->first()?->schedule_type;
 
             $checkIn = $breakOut = $breakIn = $checkOut = '';
 
@@ -526,12 +530,16 @@ class DTRController extends Controller
                 if ($daySchedule === '10HR') {
                     $schedStartMins = 7 * 60;
                     $schedEndMins = 18 * 60;
+                    $latestStart = 8 * 60; // 8:00 AM
                 } elseif ($daySchedule === '8HR') {
                     $schedStartMins = 8 * 60;
                     $schedEndMins = 17 * 60;
+                    $latestStart = 9 * 60; // 9:00 AM
                 } else {
-                    $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
-                    $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                    $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
+                    $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
+                    $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
+                    $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
                 }
                 
                 $shiftLength = $schedEndMins - $schedStartMins;
@@ -539,28 +547,22 @@ class DTRController extends Controller
                 $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
                 $outMins = $checkOut ? $timeToMins($checkOut, true) : null; // check out is PM
 
-                $effectiveStartMins = $schedStartMins;
-
-                // Flexi only on 10hr shift
-                if ($schedStartMins === (7 * 60) && $inMins !== null) {
-                    if ($inMins <= 480) {
-                        $effectiveStartMins = max($schedStartMins, $inMins);
-                    } else {
-                        $effectiveStartMins = 480;
-                    }
-                }
-
                 if ($inMins !== null) {
-                    $late = max(0, $inMins - $effectiveStartMins);
-                    if ($late > 0)
-                        $lateMinutes = $late;
-                }
+                    // 1. Calculate Late (strictly based on latest allowed start)
+                    $late = max(0, $inMins - $latestStart);
+                    if ($late > 0) $lateMinutes = $late;
 
-                if ($outMins !== null) {
-                    $effectiveEndMins = $effectiveStartMins + $shiftLength;
-                    $under = max(0, $effectiveEndMins - $outMins);
-                    if ($under > 0)
-                        $undertimeMinutes = $under;
+                    // 2. Calculate Effective Start for Duration
+                    $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
+                    $earliestStart = $is10Hr ? 420 : 360; // 10H = 7AM, 8H = 6AM
+                    $effectiveStartMins = max($earliestStart, $inMins);
+
+                    // 3. Calculate Undertime (must fulfill total shift duration)
+                    if ($outMins !== null) {
+                        $requiredEndMins = $effectiveStartMins + $shiftLength;
+                        $under = max(0, $requiredEndMins - $outMins);
+                        if ($under > 0) $undertimeMinutes = $under;
+                    }
                 }
             }
 
@@ -729,12 +731,16 @@ class DTRController extends Controller
                 if ($daySchedule === '10HR') {
                     $schedStartMins = 7 * 60;
                     $schedEndMins = 18 * 60;
+                    $latestStart = 8 * 60; // 8:00 AM
                 } elseif ($daySchedule === '8HR') {
                     $schedStartMins = 8 * 60;
                     $schedEndMins = 17 * 60;
+                    $latestStart = 9 * 60; // 9:00 AM
                 } else {
-                    $schedStartMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (7 * 60) : (8 * 60);
-                    $schedEndMins = ($dayOfWeek >= 1 && $dayOfWeek <= 4) ? (18 * 60) : (17 * 60);
+                    $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
+                    $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
+                    $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
+                    $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
                 }
 
                 $shiftLength = $schedEndMins - $schedStartMins;
@@ -742,27 +748,22 @@ class DTRController extends Controller
                 $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
                 $outMins = $checkOut ? $timeToMins($checkOut, true) : null; // check out is PM
 
-                $effectiveStartMins = $schedStartMins;
-
-                if ($schedStartMins === (7 * 60) && $inMins !== null) {
-                    if ($inMins <= 480) {
-                        $effectiveStartMins = max($schedStartMins, $inMins);
-                    } else {
-                        $effectiveStartMins = 480;
-                    }
-                }
-
                 if ($inMins !== null) {
-                    $late = max(0, $inMins - $effectiveStartMins);
-                    if ($late > 0)
-                        $lateMinutes = $late;
-                }
+                    // 1. Calculate Late (strictly based on latest allowed start)
+                    $late = max(0, $inMins - $latestStart);
+                    if ($late > 0) $lateMinutes = $late;
 
-                if ($outMins !== null) {
-                    $effectiveEndMins = $effectiveStartMins + $shiftLength;
-                    $under = max(0, $effectiveEndMins - $outMins);
-                    if ($under > 0)
-                        $undertimeMinutes = $under;
+                    // 2. Calculate Effective Start for Duration
+                    $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
+                    $earliestStart = $is10Hr ? 420 : 360; // 10H = 7AM, 8H = 6AM
+                    $effectiveStartMins = max($earliestStart, $inMins);
+
+                    // 3. Calculate Undertime (must fulfill total shift duration)
+                    if ($outMins !== null) {
+                        $requiredEndMins = $effectiveStartMins + $shiftLength;
+                        $under = max(0, $requiredEndMins - $outMins);
+                        if ($under > 0) $undertimeMinutes = $under;
+                    }
                 }
             }
 
