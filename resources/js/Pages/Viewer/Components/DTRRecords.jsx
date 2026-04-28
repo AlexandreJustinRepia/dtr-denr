@@ -183,7 +183,7 @@ export default function DTRRecords({
                                                             const latestStartMins = timeToMins(scheduled.latest);
                                                             const shiftLength = schedEndMins - schedStartMins;
 
-                                                            if (inMins !== null) {
+                                                            if (inMins !== null && outMins !== null) {
                                                                 // 1. Calculate Late (strictly based on the latest allowed window)
                                                                 const late = Math.max(0, inMins - latestStartMins);
                                                                 if (late > 0) lateMinutes = late;

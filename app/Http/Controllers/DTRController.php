@@ -218,37 +218,82 @@ class DTRController extends Controller
             if ($line === '')
                 continue;
 
-            if (!preg_match('/^(.*?)\s+(\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)/i', $line, $mLine)) {
+            if (!preg_match('/^(.*?)\s+((?:\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/i', $line, $mLine)) {
                 logger('INVALID DTR LINE: ' . $line);
                 continue;
             }
 
-            $name = $formatName($mLine[1]);
-            $datetime = trim($mLine[2]);
-
-            if (!preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
-                continue;
+            // Check if line contains a valid attendance status (e.g. Check In, Check Out, etc.)
+            $afterDate = substr($line, strlen($mLine[0]));
+            if (!preg_match('/(check\s*in|check\s*out|break\s*in|break\s*out|c\/in|c\/out|\bin\b|\bout\b)/i', $afterDate, $statusMatch)) {
+                continue; // Skip lines without valid attendance status
             }
 
-            $month = (int) $m[1];
-            $day = (int) $m[2];
-            $year = (int) $m[3];
-            $hour = (int) $m[4];
-            $min = (int) $m[5];
-            $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
+            $name = $formatName($mLine[1]);
+            if (empty($name)) {
+                continue;
+            }
+            
+            $datetime = trim($mLine[2]);
+
+            $month = $day = $year = 0;
+            if (preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+                $month = (int) $m[1];
+                $day = (int) $m[2];
+                $year = (int) $m[3];
+                $hour = (int) $m[4];
+                $min = (int) $m[5];
+                $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
+            } elseif (preg_match('/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+                $year = (int) $m[1];
+                $month = (int) $m[2];
+                $day = (int) $m[3];
+                $hour = (int) $m[4];
+                $min = (int) $m[5];
+                $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
+            } else {
+                continue;
+            }
 
             if ($ampm === 'PM' && $hour < 12)
                 $hour += 12;
             if ($ampm === 'AM' && $hour == 12)
                 $hour = 0;
 
+            // Validate against the system rules based on the provided status
+            $statusStr = strtolower(trim($statusMatch[1]));
+            $isCheckIn = str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in';
+            $isCheckOut = str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out';
+            $isBreakOut = str_contains($statusStr, 'break out');
+            $isBreakIn = str_contains($statusStr, 'break in');
+
+            $isValid = false;
+            if ($isCheckIn) {
+                if ($hour >= 5 && $hour <= 11) $isValid = true;
+            } elseif ($isBreakOut || $isBreakIn) {
+                if ($hour == 12) $isValid = true;
+            } elseif ($isCheckOut) {
+                if ($hour >= 13 && $hour <= 21) $isValid = true;
+            }
+
+            if (!$isValid) {
+                continue;
+            }
+
             $time24 = sprintf('%02d:%02d', $hour, $min);
             $dateKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
             $monthKey = sprintf('%04d-%02d', $year, $month);
 
+            $type = '';
+            if ($isCheckIn) $type = 'in';
+            elseif ($isBreakOut) $type = 'bout';
+            elseif ($isBreakIn) $type = 'bin';
+            elseif ($isCheckOut) $type = 'out';
+
             $records[$name][$monthKey][$dateKey]['logs'][] = [
                 'time24' => $time24,
-                'hour24' => $hour
+                'hour24' => $hour,
+                'type' => $type
             ];
         }
 
@@ -256,6 +301,24 @@ class DTRController extends Controller
         foreach ($records as &$person) {
             foreach ($person as &$monthGroup) {
                 foreach ($monthGroup as $date => &$rec) {
+                    // Filter duplicate logs
+                    $bestLogs = [];
+                    foreach ($rec['logs'] as $log) {
+                        $type = $log['type'];
+                        if ($type === 'in' || $type === 'bout' || $type === 'bin') {
+                            // Keep the earliest for check-in and breaks
+                            if (!isset($bestLogs[$type]) || $log['time24'] < $bestLogs[$type]['time24']) {
+                                $bestLogs[$type] = $log;
+                            }
+                        } elseif ($type === 'out') {
+                            // Keep the latest for check-out
+                            if (!isset($bestLogs[$type]) || $log['time24'] > $bestLogs[$type]['time24']) {
+                                $bestLogs[$type] = $log;
+                            }
+                        }
+                    }
+                    
+                    $rec['logs'] = array_values($bestLogs);
                     usort($rec['logs'], fn($a, $b) => $a['time24'] <=> $b['time24']);
 
                     // Add weekday metadata
@@ -508,7 +571,7 @@ class DTRController extends Controller
             $lateMinutes = null;
             $undertimeMinutes = null;
 
-            if ($checkIn || $checkOut) {
+            if ($checkIn && $checkOut) {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
@@ -710,7 +773,7 @@ class DTRController extends Controller
             $lateMinutes = null;
             $undertimeMinutes = null;
 
-            if ($checkIn || $checkOut) {
+            if ($checkIn && $checkOut) {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
