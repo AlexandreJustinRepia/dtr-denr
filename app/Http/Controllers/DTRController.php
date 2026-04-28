@@ -79,10 +79,11 @@ class DTRController extends Controller
         // ---- 1. Duplicate check -------------------------------------------------
         $hash = hash('sha256', $logText);
         $existing = DTRBatch::where('hash', $hash)->first();
+        $useStrictStatus = filter_var($request->input('useStrictStatus', true), FILTER_VALIDATE_BOOLEAN);
 
         // ---- 2. Parse log text --------------------------------------------------
         $startTime = microtime(true);
-        $parsed = $this->parseLogText($logText);
+        $parsed = $this->parseLogText($logText, $useStrictStatus);
         $endTime = microtime(true);
         $duration = round(($endTime - $startTime) * 1000, 2);
 
@@ -112,7 +113,7 @@ class DTRController extends Controller
         ]);
     }
 
-    private function parseLogText(string $logText): array
+    private function parseLogText(string $logText, bool $useStrictStatus = true): array
     {
         $exceptions = [
             'EMMANUELMACALINAO' => 'EMMANUEL MACALINAO',
@@ -225,7 +226,9 @@ class DTRController extends Controller
 
             // Check if line contains a valid attendance status (e.g. Check In, Check Out, etc.)
             $afterDate = substr($line, strlen($mLine[0]));
-            if (!preg_match('/(check\s*in|check\s*out|break\s*in|break\s*out|c\/in|c\/out|\bin\b|\bout\b)/i', $afterDate, $statusMatch)) {
+            preg_match('/(check\s*in|check\s*out|break\s*in|break\s*out|c\/in|c\/out|\bin\b|\bout\b)/i', $afterDate, $statusMatch);
+            
+            if ($useStrictStatus && empty($statusMatch)) {
                 continue; // Skip lines without valid attendance status
             }
 
@@ -261,34 +264,37 @@ class DTRController extends Controller
                 $hour = 0;
 
             // Validate against the system rules based on the provided status
-            $statusStr = strtolower(trim($statusMatch[1]));
-            $isCheckIn = str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in';
-            $isCheckOut = str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out';
-            $isBreakOut = str_contains($statusStr, 'break out');
-            $isBreakIn = str_contains($statusStr, 'break in');
+            $type = 'legacy';
+            
+            if ($useStrictStatus && !empty($statusMatch)) {
+                $statusStr = strtolower(trim($statusMatch[1]));
+                $isCheckIn = str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in';
+                $isCheckOut = str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out';
+                $isBreakOut = str_contains($statusStr, 'break out');
+                $isBreakIn = str_contains($statusStr, 'break in');
 
-            $isValid = false;
-            if ($isCheckIn) {
-                if ($hour >= 5 && $hour <= 11) $isValid = true;
-            } elseif ($isBreakOut || $isBreakIn) {
-                if ($hour == 12) $isValid = true;
-            } elseif ($isCheckOut) {
-                if ($hour >= 13 && $hour <= 21) $isValid = true;
-            }
+                $isValid = false;
+                if ($isCheckIn) {
+                    if ($hour >= 5 && $hour <= 11) $isValid = true;
+                } elseif ($isBreakOut || $isBreakIn) {
+                    if ($hour == 12) $isValid = true;
+                } elseif ($isCheckOut) {
+                    if ($hour >= 13 && $hour <= 21) $isValid = true;
+                }
 
-            if (!$isValid) {
-                continue;
+                if (!$isValid) {
+                    continue;
+                }
+
+                if ($isCheckIn) $type = 'in';
+                elseif ($isBreakOut) $type = 'bout';
+                elseif ($isBreakIn) $type = 'bin';
+                elseif ($isCheckOut) $type = 'out';
             }
 
             $time24 = sprintf('%02d:%02d', $hour, $min);
             $dateKey = sprintf('%04d-%02d-%02d', $year, $month, $day);
             $monthKey = sprintf('%04d-%02d', $year, $month);
-
-            $type = '';
-            if ($isCheckIn) $type = 'in';
-            elseif ($isBreakOut) $type = 'bout';
-            elseif ($isBreakIn) $type = 'bin';
-            elseif ($isCheckOut) $type = 'out';
 
             $records[$name][$monthKey][$dateKey]['logs'][] = [
                 'time24' => $time24,
@@ -315,6 +321,8 @@ class DTRController extends Controller
                             if (!isset($bestLogs[$type]) || $log['time24'] > $bestLogs[$type]['time24']) {
                                 $bestLogs[$type] = $log;
                             }
+                        } else {
+                            $bestLogs[] = $log;
                         }
                     }
                     

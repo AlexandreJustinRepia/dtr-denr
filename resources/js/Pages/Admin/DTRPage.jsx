@@ -29,6 +29,7 @@ export default function DTRPage() {
   const [batchName, setBatchName] = useState('');
   const [refreshSignal, setRefreshSignal] = useState(0);
   const [parsingStats, setParsingStats] = useState(null);
+  const [useStrictStatus, setUseStrictStatus] = useState(true);
 
   const generate = async e => {
     e.preventDefault();
@@ -42,7 +43,7 @@ export default function DTRPage() {
     setRecords(null);
 
     try {
-      const { data } = await axios.post('/generate', { logText, batchName });
+      const { data } = await axios.post('/generate', { logText, batchName, useStrictStatus });
       setRecords(data.records);
       setAlreadySaved(data.alreadySaved);
       setBatchId(data.batchId);
@@ -142,6 +143,21 @@ export default function DTRPage() {
                       </span>
                     </div>
                   )}
+                </div>
+
+                {/* Toggle for Strict Status */}
+                <div className="flex items-center gap-3 px-2 mb-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setUseStrictStatus(!useStrictStatus)}
+                    className={`w-10 h-6 rounded-full transition-colors relative ${useStrictStatus ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${useStrictStatus ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                  </button>
+                  <div>
+                    <p className="text-xs font-bold text-gray-700">Strict Attendance Rules</p>
+                    <p className="text-[9px] text-gray-400">If enabled, applies rigid time checks and ignores blank statuses.</p>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-50">
