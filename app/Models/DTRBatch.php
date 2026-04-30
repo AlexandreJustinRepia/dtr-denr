@@ -13,4 +13,9 @@ class DTRBatch extends Model
         'record_count',
         'batch_name'
     ];
+
+    public function dtrRecords()
+    {
+        return $this->hasMany(DTRRecord::class, 'batch_id');
+    }
 }

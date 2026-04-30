@@ -12,6 +12,7 @@ class DTRRecord extends Model
     protected $table = 'dtr_records';
 
     protected $fillable = [
+        'batch_id',
         'employee_id',
         'employee_name',
         'log_date',
@@ -20,6 +21,11 @@ class DTRRecord extends Model
         'status',
         'schedule_type'
     ];
+
+    public function batch()
+    {
+        return $this->belongsTo(DTRBatch::class, 'batch_id');
+    }
 
     public function employee()
     {

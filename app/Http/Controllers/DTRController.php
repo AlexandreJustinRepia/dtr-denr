@@ -82,23 +82,28 @@ class DTRController extends Controller
         $existing = DTRBatch::where('hash', $hash)->first();
         $useStrictStatus = filter_var($request->input('useStrictStatus', true), FILTER_VALIDATE_BOOLEAN);
 
-        // ---- 2. Parse log text --------------------------------------------------
-        $startTime = microtime(true);
-        $parsed = $this->parseLogText($logText, $useStrictStatus);
-        $endTime = microtime(true);
-        $duration = round(($endTime - $startTime) * 1000, 2);
-
-        // ---- 3. Save batch (only if new) ----------------------------------------
+        // ---- 2. Identify/Create Batch --------------------------------------------
         if (!$existing) {
             $batch = DTRBatch::create([
-                'batch_name' => $batchName, // Save batch name
+                'batch_name' => $batchName,
                 'raw_log' => $logText,
                 'hash' => $hash,
-                'record_count' => $parsed['totalRecords'],
+                'record_count' => 0, // Will update after parsing
             ]);
             $batchId = $batch->id;
         } else {
             $batchId = $existing->id;
+        }
+
+        // ---- 3. Parse log text --------------------------------------------------
+        $startTime = microtime(true);
+        $parsed = $this->parseLogText($logText, $useStrictStatus, $batchId);
+        $endTime = microtime(true);
+        $duration = round(($endTime - $startTime) * 1000, 2);
+
+        // Update record count if new
+        if (!$existing) {
+            DTRBatch::where('id', $batchId)->update(['record_count' => $parsed['totalRecords']]);
         }
 
         // ---- 4. Return ------------------------------------------------------------
@@ -114,7 +119,7 @@ class DTRController extends Controller
         ]);
     }
 
-    private function parseLogText(string $logText, bool $useStrictStatus = true): array
+    private function parseLogText(string $logText, bool $useStrictStatus = true, $batchId = null): array
     {
         $exceptions = [
             'EMMANUELMACALINAO' => 'EMMANUEL MACALINAO',
@@ -352,6 +357,7 @@ class DTRController extends Controller
                     $status = $employee->status;
                     foreach ($rec['logs'] as $log) {
                         DTRRecord::firstOrCreate([
+                            'batch_id' => $batchId,
                             'employee_id' => $employee->id,
                             'employee_name' => $name,
                             'log_date' => $date,
@@ -410,6 +416,13 @@ class DTRController extends Controller
             ->paginate(10);
 
         return response()->json($batches);
+    }
+
+    public function deleteBatch($id)
+    {
+        $batch = DTRBatch::findOrFail($id);
+        $batch->delete(); // This will trigger cascade delete on dtr_records
+        return response()->json(['success' => true]);
     }
 
     public function batchRaw($id)

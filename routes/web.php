@@ -24,6 +24,8 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
         ->name('admin.dtr.history');
     Route::get('/admin/dtr/batch/{id}/raw', [DTRController::class , 'batchRaw'])
         ->name('admin.dtr.batch.raw');
+    Route::delete('/admin/dtr/batch/{id}', [DTRController::class , 'deleteBatch'])
+        ->name('admin.dtr.batch.delete');
 
     Route::get('/', [DTRController::class , 'view'])->name('dtr.view');
     Route::get('/generate-dtr/{employee}/{month}', [DTRController::class , 'generatePdf'])->name('dtr.generate');

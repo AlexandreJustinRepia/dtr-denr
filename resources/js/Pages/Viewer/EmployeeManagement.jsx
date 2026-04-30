@@ -16,13 +16,15 @@ import {
     ArrowLeft,
     GitMerge,
     AlertCircle,
-    Check
+    Check,
+    HelpCircle
 } from 'lucide-react';
 
 export default function EmployeeManagement({ employees }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [showHelp, setShowHelp] = useState(false);
     
     // Merge state
     const [mergeMode, setMergeMode] = useState(false);
@@ -123,7 +125,14 @@ export default function EmployeeManagement({ employees }) {
                     </div>
 
                     <div className="text-center md:text-right">
-                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/20 mb-2">
+                        <button 
+                            onClick={() => setShowHelp(!showHelp)}
+                            className="inline-flex items-center gap-2 bg-white/10 px-6 py-2.5 rounded-2xl backdrop-blur-md border border-white/20 mb-4 hover:bg-white/20 transition-all text-white"
+                        >
+                            <HelpCircle size={16} />
+                            <span className="text-[11px] font-black uppercase tracking-widest">How Merging Works?</span>
+                        </button>
+                        <div className="flex items-center justify-center md:justify-end gap-2 text-white/60">
                             <span className="text-[11px] font-black uppercase tracking-widest text-white/90">Total Personnel: {employees.length}</span>
                         </div>
                     </div>
@@ -133,6 +142,88 @@ export default function EmployeeManagement({ employees }) {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto -mt-16 px-6 pb-20 relative z-20">
+                
+                {/* Help Section */}
+                {showHelp && (
+                    <div className="bg-white rounded-[40px] shadow-2xl shadow-gray-300/50 p-10 mb-10 border-4 border-green-500/20 animate-in fade-in zoom-in duration-300">
+                        <div className="flex items-start justify-between mb-8">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-green-100 p-4 rounded-3xl text-green-700">
+                                    <HelpCircle size={32} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-800 tracking-tight">Understanding Consolidation</h2>
+                                    <p className="text-gray-500 text-sm font-bold uppercase tracking-widest">A quick guide to merging duplicate profiles</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowHelp(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-all">
+                                <X className="text-gray-400" />
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div className="space-y-6">
+                                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-black">1</div>
+                                        <h3 className="font-black text-gray-800 uppercase tracking-tight">The Source (Duplicate)</h3>
+                                    </div>
+                                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                                        Click the <GitMerge size={14} className="inline mx-1 text-blue-600" /> button on the profile you want to <strong>DELETE</strong>. 
+                                        This is usually the misspelled name or the one with fewer records.
+                                    </p>
+                                    <div className="bg-blue-100/50 border border-blue-200 p-3 rounded-xl text-blue-800 text-[10px] font-black uppercase tracking-widest">
+                                        This profile will be removed after the merge.
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-black">2</div>
+                                        <h3 className="font-black text-gray-800 uppercase tracking-tight">The Target (Original)</h3>
+                                    </div>
+                                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                                        Select the profile you want to <strong>KEEP</strong>. 
+                                        This is the correct spelling that will represent the employee in the directory.
+                                    </p>
+                                    <div className="bg-green-100/50 border border-green-200 p-3 rounded-xl text-green-800 text-[10px] font-black uppercase tracking-widest">
+                                        This profile will receive all records from the Source.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-900 rounded-[32px] p-8 text-white relative overflow-hidden">
+                                <ShieldCheck className="absolute -right-10 -bottom-10 text-white/5" size={200} />
+                                <h3 className="text-xl font-black mb-6 flex items-center gap-2">
+                                    <AlertCircle className="text-green-400" />
+                                    Data Safety Guarantee
+                                </h3>
+                                <ul className="space-y-4 text-sm font-bold text-gray-400">
+                                    <li className="flex items-start gap-3">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 shrink-0"></div>
+                                        <span>NO DTR records are deleted during a merge.</span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 shrink-0"></div>
+                                        <span>Logs are automatically updated to point to the correct ID.</span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-1.5 shrink-0"></div>
+                                        <span>The combined history will now appear under one single PDF.</span>
+                                    </li>
+                                </ul>
+                                <div className="mt-8 pt-8 border-t border-white/10 text-center">
+                                    <button 
+                                        onClick={() => setShowHelp(false)}
+                                        className="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl shadow-green-900/40"
+                                    >
+                                        Got it, let's clean up!
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Merge Banner */}
                 {mergeMode && (
