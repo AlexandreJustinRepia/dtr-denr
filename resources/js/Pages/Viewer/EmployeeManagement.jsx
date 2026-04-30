@@ -1,0 +1,276 @@
+import React, { useState } from 'react';
+import { Head, useForm, router } from '@inertiajs/react';
+import { 
+    Users, 
+    Search, 
+    Edit2, 
+    Trash2, 
+    Save, 
+    X, 
+    UserCheck, 
+    UserPlus,
+    Building2,
+    ShieldCheck,
+    Clock,
+    Filter,
+    ArrowLeft
+} from 'lucide-react';
+
+export default function EmployeeManagement({ employees }) {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [editingId, setEditingId] = useState(null);
+    const [statusFilter, setStatusFilter] = useState('ALL');
+
+    const { data, setData, patch, delete: destroy, processing, reset } = useForm({
+        name: '',
+        status: '',
+    });
+
+    const startEditing = (employee) => {
+        setEditingId(employee.id);
+        setData({
+            name: employee.name,
+            status: employee.status,
+        });
+    };
+
+    const cancelEditing = () => {
+        setEditingId(null);
+        reset();
+    };
+
+    const handleUpdate = (id) => {
+        patch(route('employees.update', id), {
+            onSuccess: () => setEditingId(null),
+        });
+    };
+
+    const handleDelete = (id) => {
+        if (confirm('Are you sure you want to remove this employee? This will not delete their attendance records but will remove them from this management list.')) {
+            destroy(route('employees.destroy', id));
+        }
+    };
+
+    const filteredEmployees = employees.filter(emp => {
+        const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] font-sans selection:bg-green-100 selection:text-green-900">
+            <Head title="Employee Management | PENRO Bulacan" />
+
+            {/* Header */}
+            <header className="bg-green-700 pt-12 pb-24 px-6 relative overflow-hidden text-white">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between relative z-10">
+                    <div className="flex items-center gap-6 mb-8 md:mb-0">
+                        <button 
+                            onClick={() => window.history.back()}
+                            className="bg-white/10 p-3 rounded-2xl hover:bg-white/20 transition-all border border-white/10"
+                        >
+                            <ArrowLeft className="w-6 h-6 text-white" />
+                        </button>
+                        <div className="bg-white p-4 rounded-3xl shadow-xl shadow-green-900/20">
+                            <Users className="w-10 h-10 text-green-700" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <ShieldCheck size={14} className="text-green-100" />
+                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Administration</span>
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-1">Personnel Directory</h1>
+                            <p className="text-sm font-bold uppercase tracking-widest text-green-50 italic">Manage Employment Classifications</p>
+                        </div>
+                    </div>
+
+                    <div className="text-center md:text-right">
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/20 mb-2">
+                            <span className="text-[11px] font-black uppercase tracking-widest text-white/90">Total Personnel: {employees.length}</span>
+                        </div>
+                    </div>
+                </div>
+                <Zap className="absolute -right-20 -bottom-20 text-white/5" size={400} />
+            </header>
+
+            {/* Main Content */}
+            <main className="max-w-7xl mx-auto -mt-16 px-6 pb-20 relative z-20">
+                <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 p-8 md:p-10 mb-10 border border-gray-100 overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+                        {/* Search */}
+                        <div className="md:col-span-8 relative group">
+                            <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Search Registry</label>
+                            <div className="relative">
+                                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                <input
+                                    type="text"
+                                    placeholder="Find employee by name..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-14 pr-6 py-5 bg-gray-50 border-none rounded-[32px] text-sm font-bold text-gray-800 placeholder:text-gray-400 focus:ring-4 focus:ring-green-500/10 shadow-inner transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Status Filter */}
+                        <div className="md:col-span-4 relative group">
+                            <label className="block text-xs font-black text-gray-600 uppercase tracking-[0.2em] mb-2 ml-4">Classification Filter</label>
+                            <div className="relative">
+                                <Filter className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-green-600" />
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="w-full pl-12 pr-6 py-5 bg-gray-50 border-none rounded-2xl text-sm font-bold text-gray-800 appearance-none focus:ring-4 focus:ring-green-500/10 shadow-inner"
+                                >
+                                    <option value="ALL">All Classifications</option>
+                                    <option value="PERMANENT">Permanent Personnel</option>
+                                    <option value="JO">Job Order (JO)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Employees List */}
+                <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 overflow-hidden border border-gray-100">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-gray-50/50 border-b border-gray-100">
+                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Employee Name</th>
+                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Classification</th>
+                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-center">Registration</th>
+                                    <th className="px-8 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {filteredEmployees.length > 0 ? (
+                                    filteredEmployees.map((emp) => (
+                                        <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors group">
+                                            <td className="px-8 py-6">
+                                                {editingId === emp.id ? (
+                                                    <input
+                                                        type="text"
+                                                        value={data.name}
+                                                        onChange={(e) => setData('name', e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white border-2 border-green-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-4 focus:ring-green-500/10 outline-none"
+                                                    />
+                                                ) : (
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="bg-green-100 p-2 rounded-lg text-green-700 font-bold text-xs uppercase">
+                                                            {emp.name.charAt(0)}
+                                                        </div>
+                                                        <span className="text-sm font-black text-gray-800">{emp.name}</span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                {editingId === emp.id ? (
+                                                    <select
+                                                        value={data.status}
+                                                        onChange={(e) => setData('status', e.target.value)}
+                                                        className="w-full px-4 py-2 bg-white border-2 border-green-200 rounded-xl text-sm font-bold text-gray-800 focus:ring-4 focus:ring-green-500/10 outline-none"
+                                                    >
+                                                        <option value="PERMANENT">Permanent</option>
+                                                        <option value="JO">Job Order</option>
+                                                    </select>
+                                                ) : (
+                                                    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                                        emp.status === 'PERMANENT' 
+                                                            ? 'bg-blue-50 text-blue-700 border border-blue-100' 
+                                                            : 'bg-orange-50 text-orange-700 border border-orange-100'
+                                                    }`}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${emp.status === 'PERMANENT' ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
+                                                        {emp.status === 'PERMANENT' ? 'Permanent' : 'Job Order'}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-8 py-6 text-center">
+                                                <div className="flex flex-col items-center gap-1 opacity-60">
+                                                    <Clock size={12} className="text-gray-400" />
+                                                    <span className="text-[10px] font-bold text-gray-500">{emp.added_ago}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    {editingId === emp.id ? (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => handleUpdate(emp.id)}
+                                                                disabled={processing}
+                                                                className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-xl shadow-lg shadow-green-500/20 transition-all active:scale-90"
+                                                                title="Save Changes"
+                                                            >
+                                                                <Save size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={cancelEditing}
+                                                                className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-all active:scale-90"
+                                                                title="Cancel"
+                                                            >
+                                                                <X size={16} />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button 
+                                                                onClick={() => startEditing(emp)}
+                                                                className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all active:scale-90 opacity-0 group-hover:opacity-100"
+                                                                title="Edit Personnel"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleDelete(emp.id)}
+                                                                className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all active:scale-90 opacity-0 group-hover:opacity-100"
+                                                                title="Delete From Registry"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="4" className="px-8 py-20 text-center">
+                                            <div className="flex flex-col items-center gap-4 opacity-20">
+                                                <Users size={64} />
+                                                <p className="text-sm font-black uppercase tracking-widest">No matching personnel found</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+}
+
+function Zap({ className, size }) {
+    return (
+        <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width={size} 
+            height={size} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className={className}
+        >
+            <path d="M4 14.71 14.71 4" />
+            <path d="M14.71 20 20 14.71" />
+            <path d="m14.71 4-10.71 10.71" />
+            <path d="m20 14.71-5.29 5.29" />
+            <path d="M10 10l4 4" />
+        </svg>
+    );
+}

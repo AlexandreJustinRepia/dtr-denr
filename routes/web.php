@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DTRController;
+use App\Http\Controllers\EmployeeController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -30,6 +31,11 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
         ->name('dtr.fetch');
     Route::post('/update-schedule', [DTRController::class , 'updateDaySchedule'])->name('dtr.update-schedule');
     Route::get('/generate-bulk-dtr/{month}/{year}/{status}', [DTRController::class , 'downloadBulkPdf'])->name('dtr.generate-bulk');
+
+    // Employee Management
+    Route::get('/admin/employees', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::patch('/admin/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+    Route::delete('/admin/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
 });
 
 

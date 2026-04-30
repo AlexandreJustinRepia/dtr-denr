@@ -171,31 +171,6 @@ class DTRController extends Controller
             'ARGENTINA SEBASTIAN ABE' => 'ARGENTINA S. ABERIN'
         ];
 
-        $permanentEmployees = [
-            'VIVIANNE VISPERAS CUNAN',
-            'ARBIE TALUCOD ESTRELLA',
-            'CYNTHIA  MANANGU SAGUM',
-            'KENNETH RODRIGUEZ ROL',
-            'ARMANDO GUIAO SAWIT',
-            'JETHRO TORRES CERVANTES',
-            'AURORA CRISTOBAL AQUINO',
-            'JESSICA GARCIA',
-            'EDMAR A. GALLARDO',
-            'KRIZ-TATUM OLAES LAPPAY',
-            'JOANAH MARIE P. ODANGA',
-            'LIBRADO F GELLEZ JR',
-            'MELVIN ARIMAGAO MASIN',
-            'MARIANNE P. GONZALES',
-            'MARICRIS A. GONZALES',
-            'TERESA DELA CRUZ PARAISO',
-            'THELMA B. CASTRICIONES',
-            'MA LEONORA JIMENEZ VALIENTE',
-            'ARGENTINA S. ABERIN',
-            'ERA BALINGIT CASTRO',
-            'OFELIA SARDENIA CONAG',
-            'MARICRIS Q. PEREZ',
-        ];
-
         $formatName = function ($rawName) use ($exceptions) {
             // Clean name
             $rawName = preg_replace('/[^a-zA-Z\.\- ]/', '', $rawName);
@@ -370,9 +345,11 @@ class DTRController extends Controller
         foreach ($records as $name => $months) {
             foreach ($months as $month => $days) {
                 foreach ($days as $date => $rec) {
-                    $status = in_array($name, $permanentEmployees) ? 'PERMANENT' : 'JO';
+                    $employee = \App\Models\Employee::firstOrCreate(['name' => $name]);
+                    $status = $employee->status;
                     foreach ($rec['logs'] as $log) {
                         DTRRecord::firstOrCreate([
+                            'employee_id' => $employee->id,
                             'employee_name' => $name,
                             'log_date' => $date,
                             'log_time' => $log['time24'],

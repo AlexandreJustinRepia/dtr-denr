@@ -12,6 +12,7 @@ class DTRRecord extends Model
     protected $table = 'dtr_records';
 
     protected $fillable = [
+        'employee_id',
         'employee_name',
         'log_date',
         'log_time',
@@ -19,4 +20,9 @@ class DTRRecord extends Model
         'status',
         'schedule_type'
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
 }

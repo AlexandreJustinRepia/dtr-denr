@@ -1,6 +1,6 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
-import { Download, User, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck } from 'lucide-react';
+import { Download, User, Users, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck } from 'lucide-react';
 import Footer from '@/Components/Footer';
 import SearchFilters from './Components/SearchFilter';
 import EmployeeList from './Components/EmployeeList';
@@ -238,8 +238,16 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                         </div>
                     </div>
 
-                    <div className="text-center md:text-right">
-                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/20 mb-2">
+                    <div className="text-center md:text-right flex flex-col items-center md:items-end gap-3">
+                        <Link 
+                            href={route('employees.index')}
+                            className="inline-flex items-center gap-2 bg-white text-green-700 px-5 py-2.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-green-900/20 hover:bg-green-50 transition-all active:scale-95"
+                        >
+                            <Users size={14} />
+                            Manage Personnel
+                        </Link>
+                        
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/20">
                             <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
                             <span className="text-[11px] font-black uppercase tracking-widest text-white/90">Attendance Server Online</span>
                         </div>
