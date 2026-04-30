@@ -123,7 +123,7 @@ export default function DTRRecords({
                                             </button>
 
                                             {/* DOCX */}
-                                            {/* {downloadLoading[`${selectedEmployee}-${monthKey}-docx`] ? (
+                                            {downloadLoading[`${selectedEmployee}-${monthKey}-docx`] ? (
                                                 <button disabled className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-blue-500/50 text-white cursor-not-allowed">
                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...
                                                 </button>
@@ -135,7 +135,7 @@ export default function DTRRecords({
                                                     <FileText className="w-3.5 h-3.5" /> DOCX
                                                 </button>
                                             )}
-                                            */}
+                                            
                                         </div>
                                     </div>
 

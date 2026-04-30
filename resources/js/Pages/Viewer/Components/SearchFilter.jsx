@@ -48,20 +48,18 @@ export default function SearchFilters({
                     <h2 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em]">Refine Retrieval Parameters</h2>
                 </div>
 
-                {status && (
-                    <button
-                        onClick={handleBulkDownload}
-                        disabled={loadingEmployees || isBulkLoading}
-                        className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
-                    >
-                        {isBulkLoading ? (
-                            <Loader2 size={12} className="animate-spin" />
-                        ) : (
-                            <Download size={12} />
-                        )}
-                        Download All {status} PDFs
-                    </button>
-                )}
+                <button
+                    onClick={handleBulkDownload}
+                    disabled={loadingEmployees || isBulkLoading}
+                    className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                >
+                    {isBulkLoading ? (
+                        <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                        <Download size={12} />
+                    )}
+                    {status ? `Download All ${status} PDFs` : 'Download All PDFs'}
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">

@@ -217,12 +217,12 @@ class DTRController extends Controller
             // or if we can infer the status from the time.
             $afterDate = substr($line, strlen($mLine[0]));
             preg_match('/(check\s*in|check\s*out|break\s*in|break\s*out|c\/in|c\/out|\bin\b|\bout\b)/i', $afterDate, $statusMatch);
-            
+
             $name = $formatName($mLine[1]);
             if (empty($name)) {
                 continue;
             }
-            
+
             $datetime = trim($mLine[2]);
 
             $month = $day = $year = 0;
@@ -237,7 +237,7 @@ class DTRController extends Controller
                 $hour = (int) $m[4];
                 $min = isset($m[5]) ? (int) $m[5] : 0;
                 $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
-            } 
+            }
             // Handle Y-M-D Format
             elseif (preg_match('/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
                 $year = (int) $m[1];
@@ -267,28 +267,39 @@ class DTRController extends Controller
 
                 $isValid = false;
                 if ($isCheckIn) {
-                    if ($hour >= 5 && $hour <= 11) $isValid = true;
+                    if ($hour >= 5 && $hour <= 11)
+                        $isValid = true;
                 } elseif ($isBreakOut || $isBreakIn) {
-                    if ($hour == 12) $isValid = true;
+                    if ($hour == 12)
+                        $isValid = true;
                 } elseif ($isCheckOut) {
-                    if ($hour >= 13 && $hour <= 21) $isValid = true;
+                    if ($hour >= 13 && $hour <= 21)
+                        $isValid = true;
                 }
 
                 if (!$isValid) {
                     continue;
                 }
 
-                if ($isCheckIn) $type = 'in';
-                elseif ($isBreakOut) $type = 'bout';
-                elseif ($isBreakIn) $type = 'bin';
-                elseif ($isCheckOut) $type = 'out';
+                if ($isCheckIn)
+                    $type = 'in';
+                elseif ($isBreakOut)
+                    $type = 'bout';
+                elseif ($isBreakIn)
+                    $type = 'bin';
+                elseif ($isCheckOut)
+                    $type = 'out';
             } else {
                 // If not strict, still try to assign a type for better grouping
                 if ($statusStr) {
-                    if (str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in') $type = 'in';
-                    elseif (str_contains($statusStr, 'break out')) $type = 'bout';
-                    elseif (str_contains($statusStr, 'break in')) $type = 'bin';
-                    elseif (str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out') $type = 'out';
+                    if (str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in')
+                        $type = 'in';
+                    elseif (str_contains($statusStr, 'break out'))
+                        $type = 'bout';
+                    elseif (str_contains($statusStr, 'break in'))
+                        $type = 'bin';
+                    elseif (str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out')
+                        $type = 'out';
                 }
             }
 
@@ -325,7 +336,7 @@ class DTRController extends Controller
                             $bestLogs[] = $log;
                         }
                     }
-                    
+
                     $rec['logs'] = array_values($bestLogs);
                     usort($rec['logs'], fn($a, $b) => $a['time24'] <=> $b['time24']);
 
@@ -437,22 +448,23 @@ class DTRController extends Controller
     {
         // 1. Exact match
         $exact = \App\Models\Employee::where('name', $name)->first();
-        if ($exact) return $exact;
-        
+        if ($exact)
+            return $exact;
+
         // 2. Normalized match (remove dots and extra spaces)
         $normalized = strtoupper(preg_replace('/\./', '', $name));
         $normalized = trim(preg_replace('/\s+/', ' ', $normalized));
-        
+
         $employees = \App\Models\Employee::all();
         foreach ($employees as $emp) {
             $empNormalized = strtoupper(preg_replace('/\./', '', $emp->name));
             $empNormalized = trim(preg_replace('/\s+/', ' ', $empNormalized));
-            
+
             if ($normalized === $empNormalized) {
                 return $emp;
             }
         }
-        
+
         return null;
     }
 
@@ -608,7 +620,7 @@ class DTRController extends Controller
 
         $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
         $templatePath = storage_path("app/templates/{$templateFile}");
-        
+
         if (!file_exists($templatePath)) {
             return null;
         }
@@ -650,7 +662,8 @@ class DTRController extends Controller
                 $time12 = $timeObj->format('g:i');
 
                 if ($hour >= 5 && $hour <= 11) {
-                    if (empty($checkIn)) $checkIn = $time12;
+                    if (empty($checkIn))
+                        $checkIn = $time12;
                 } elseif ($hour == 12) {
                     if (empty($breakOut)) {
                         $breakOut = $time12;
@@ -683,7 +696,7 @@ class DTRController extends Controller
 
                 // Work schedule depends on the day (1-4 is 10hr shift, others 8hr)
                 $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
-                
+
                 if ($daySchedule === '10HR') {
                     $schedStartMins = 7 * 60;
                     $schedEndMins = 18 * 60;
@@ -698,7 +711,7 @@ class DTRController extends Controller
                     $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
                     $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
                 }
-                
+
                 $shiftLength = $schedEndMins - $schedStartMins;
 
                 $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
@@ -707,7 +720,8 @@ class DTRController extends Controller
                 if ($inMins !== null) {
                     // 1. Calculate Late (strictly based on latest allowed start)
                     $late = max(0, $inMins - $latestStart);
-                    if ($late > 0) $lateMinutes = $late;
+                    if ($late > 0)
+                        $lateMinutes = $late;
 
                     // 2. Calculate Effective Start for Duration
                     $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
@@ -718,7 +732,8 @@ class DTRController extends Controller
                     if ($outMins !== null) {
                         $requiredEndMins = $effectiveStartMins + $shiftLength;
                         $under = max(0, $requiredEndMins - $outMins);
-                        if ($under > 0) $undertimeMinutes = $under;
+                        if ($under > 0)
+                            $undertimeMinutes = $under;
                     }
                 }
             }
@@ -813,7 +828,7 @@ class DTRController extends Controller
 
         $outputPdf = str_replace('.docx', '.pdf', $outputDocx);
         $soffice = $this->getSofficePath();
-        
+
         if (!$soffice) {
             return response()->json(['error' => 'LibreOffice (soffice.exe) not found on server.'], 500);
         }
@@ -836,7 +851,7 @@ class DTRController extends Controller
     {
         set_time_limit(0); // Increase execution time for large batches
         ini_set('memory_limit', '1024M'); // Increase memory limit for PDF merging
-        
+
         $employees = DTRRecord::whereYear('log_date', $year)
             ->whereMonth('log_date', $month)
             ->where('status', $status)
@@ -879,10 +894,11 @@ class DTRController extends Controller
             $escapedFiles = array_map(fn($f) => '"' . $f . '"', $filesToConvert);
             $command = '"' . $soffice . '" --headless --convert-to pdf ' . implode(' ', $escapedFiles) . ' --outdir "' . $tempDir . '"';
             exec($command);
-            
+
             // Clean up DOCX files
             foreach ($filesToConvert as $docx) {
-                if (file_exists($docx)) unlink($docx);
+                if (file_exists($docx))
+                    unlink($docx);
             }
         }
 
@@ -900,7 +916,7 @@ class DTRController extends Controller
         try {
             $mpdf = new \Mpdf\Mpdf();
             $pdfFiles = glob($tempDir . DIRECTORY_SEPARATOR . "*.pdf");
-            
+
             // Sort files alphabetically by employee name (extracted from filename)
             sort($pdfFiles);
 
@@ -925,7 +941,7 @@ class DTRController extends Controller
                 }
                 $zip->close();
                 File::deleteDirectory($tempDir);
-                
+
                 // Return ZIP but maybe inform the user? 
                 // Since this is a direct download, we just return the ZIP.
                 // The filename will have .zip so the frontend needs to handle it.
