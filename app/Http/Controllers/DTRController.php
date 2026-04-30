@@ -101,9 +101,15 @@ class DTRController extends Controller
         $endTime = microtime(true);
         $duration = round(($endTime - $startTime) * 1000, 2);
 
-        // Update record count if new
-        if (!$existing) {
-            DTRBatch::where('id', $batchId)->update(['record_count' => $parsed['totalRecords']]);
+        $newCount = $parsed['newRecords'];
+        $wasNewBatch = !$existing;
+
+        // If it was a new batch but resulted in 0 new records, cleanup
+        if ($wasNewBatch && $newCount === 0) {
+            DTRBatch::where('id', $batchId)->delete();
+            $batchId = null;
+        } elseif ($wasNewBatch) {
+            DTRBatch::where('id', $batchId)->update(['record_count' => $newCount]);
         }
 
         // ---- 4. Return ------------------------------------------------------------
@@ -113,9 +119,10 @@ class DTRController extends Controller
             'batchId' => $batchId,
             'duration' => $duration,
             'recordCount' => $parsed['totalRecords'],
-            'message' => $existing
-                ? 'This log was already processed.'
-                : 'DTR records have been successfully saved to the database.',
+            'newRecords' => $newCount,
+            'message' => $newCount > 0
+                ? "Successfully processed. Added {$newCount} new records."
+                : ($existing ? "This log was already processed." : "No new records found in this log."),
         ]);
     }
 
@@ -200,19 +207,17 @@ class DTRController extends Controller
             if ($line === '')
                 continue;
 
-            if (!preg_match('/^(.*?)\s+((?:\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{1,2}-\d{1,2})\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)/i', $line, $mLine)) {
+            // Updated regex to support optional minutes/seconds (e.g. 4/6/2026 6)
+            if (!preg_match('/^(.*?)\s+((?:\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{1,2}-\d{1,2})\s+\d{1,2}(?::\d{2}){0,2}\s*(?:AM|PM)?)/i', $line, $mLine)) {
                 logger('INVALID DTR LINE: ' . $line);
                 continue;
             }
 
-            // Check if line contains a valid attendance status (e.g. Check In, Check Out, etc.)
+            // Even if no status is found, we might still want to record the log if not in strict mode
+            // or if we can infer the status from the time.
             $afterDate = substr($line, strlen($mLine[0]));
             preg_match('/(check\s*in|check\s*out|break\s*in|break\s*out|c\/in|c\/out|\bin\b|\bout\b)/i', $afterDate, $statusMatch);
             
-            if ($useStrictStatus && empty($statusMatch)) {
-                continue; // Skip lines without valid attendance status
-            }
-
             $name = $formatName($mLine[1]);
             if (empty($name)) {
                 continue;
@@ -221,19 +226,25 @@ class DTRController extends Controller
             $datetime = trim($mLine[2]);
 
             $month = $day = $year = 0;
-            if (preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+            $hour = $min = 0;
+            $ampm = '';
+
+            // Handle M/D/Y Format
+            if (preg_match('/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
                 $month = (int) $m[1];
                 $day = (int) $m[2];
                 $year = (int) $m[3];
                 $hour = (int) $m[4];
-                $min = (int) $m[5];
+                $min = isset($m[5]) ? (int) $m[5] : 0;
                 $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
-            } elseif (preg_match('/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
+            } 
+            // Handle Y-M-D Format
+            elseif (preg_match('/(\d{4})-(\d{1,2})-(\d{1,2})\s+(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)?/i', $datetime, $m)) {
                 $year = (int) $m[1];
                 $month = (int) $m[2];
                 $day = (int) $m[3];
                 $hour = (int) $m[4];
-                $min = (int) $m[5];
+                $min = isset($m[5]) ? (int) $m[5] : 0;
                 $ampm = isset($m[7]) ? strtoupper(trim($m[7])) : '';
             } else {
                 continue;
@@ -246,13 +257,13 @@ class DTRController extends Controller
 
             // Validate against the system rules based on the provided status
             $type = 'legacy';
-            
-            if ($useStrictStatus && !empty($statusMatch)) {
-                $statusStr = strtolower(trim($statusMatch[1]));
-                $isCheckIn = str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in';
-                $isCheckOut = str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out';
-                $isBreakOut = str_contains($statusStr, 'break out');
-                $isBreakIn = str_contains($statusStr, 'break in');
+            $statusStr = !empty($statusMatch) ? strtolower(trim($statusMatch[1])) : null;
+
+            if ($useStrictStatus) {
+                $isCheckIn = $statusStr ? (str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in') : ($hour >= 5 && $hour <= 11);
+                $isCheckOut = $statusStr ? (str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out') : ($hour >= 13 && $hour <= 21);
+                $isBreakOut = $statusStr ? str_contains($statusStr, 'break out') : ($hour == 12);
+                $isBreakIn = $statusStr ? str_contains($statusStr, 'break in') : false;
 
                 $isValid = false;
                 if ($isCheckIn) {
@@ -271,6 +282,14 @@ class DTRController extends Controller
                 elseif ($isBreakOut) $type = 'bout';
                 elseif ($isBreakIn) $type = 'bin';
                 elseif ($isCheckOut) $type = 'out';
+            } else {
+                // If not strict, still try to assign a type for better grouping
+                if ($statusStr) {
+                    if (str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in') $type = 'in';
+                    elseif (str_contains($statusStr, 'break out')) $type = 'bout';
+                    elseif (str_contains($statusStr, 'break in')) $type = 'bin';
+                    elseif (str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out') $type = 'out';
+                }
             }
 
             $time24 = sprintf('%02d:%02d', $hour, $min);
@@ -347,6 +366,7 @@ class DTRController extends Controller
         }
 
         // Save parsed records into the database
+        $newRecordsCount = 0;
         foreach ($records as $name => $months) {
             foreach ($months as $month => $days) {
                 foreach ($days as $date => $rec) {
@@ -356,15 +376,19 @@ class DTRController extends Controller
                     }
                     $status = $employee->status;
                     foreach ($rec['logs'] as $log) {
-                        DTRRecord::firstOrCreate([
-                            'batch_id' => $batchId,
+                        $record = DTRRecord::firstOrCreate([
                             'employee_id' => $employee->id,
-                            'employee_name' => $name,
                             'log_date' => $date,
                             'log_time' => $log['time24'],
                         ], [
+                            'batch_id' => $batchId,
+                            'employee_name' => $name,
                             'status' => $status
                         ]);
+
+                        if ($record->wasRecentlyCreated) {
+                            $newRecordsCount++;
+                        }
                     }
                 }
             }
@@ -383,9 +407,31 @@ class DTRController extends Controller
         return [
             'records' => $records,
             'totalRecords' => $total,
+            'newRecords' => $newRecordsCount,
         ];
     }
 
+
+    public function deleteMonthRecords(Request $request)
+    {
+        $employee = $request->input('employee');
+        $monthStr = $request->input('month'); // e.g., "March 2026"
+
+        try {
+            $date = Carbon::parse($monthStr);
+            $month = $date->month;
+            $year = $date->year;
+
+            DTRRecord::where('employee_name', $employee)
+                ->whereMonth('log_date', $month)
+                ->whereYear('log_date', $year)
+                ->delete();
+
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
     private function findExistingEmployee($name)
     {
@@ -497,7 +543,7 @@ class DTRController extends Controller
                         $weekday = $date->format('D');
 
                         $dayLogs = $daysGroup->where('log_date', $dateStr)
-                            ->map(fn($log) => ['time' => $log->log_time])
+                            ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
                             ->values()
                             ->toArray();
 
@@ -588,7 +634,7 @@ class DTRController extends Controller
         $templateProcessor->cloneRow('row2', $daysInMonth);
 
         for ($day = 1; $day <= $daysInMonth; $day++) {
-            $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
+            $date = Carbon::create($parsedMonth->year, $parsedMonth->month, $day);
             $dateStr = $date->format('Y-m-d');
             $weekday = $date->format('D');
             $logs = $records[$dateStr] ?? collect();
@@ -599,13 +645,12 @@ class DTRController extends Controller
             $checkIn = $breakOut = $breakIn = $checkOut = '';
 
             foreach ($logs as $log) {
-                $time24 = substr($log->log_time, 0, 5);
-                $timeObj = Carbon::createFromFormat('H:i', $time24);
+                $timeObj = Carbon::parse($log->log_time);
                 $hour = (int) $timeObj->format('H');
                 $time12 = $timeObj->format('g:i');
 
                 if ($hour >= 5 && $hour <= 11) {
-                    $checkIn = $time12;
+                    if (empty($checkIn)) $checkIn = $time12;
                 } elseif ($hour == 12) {
                     if (empty($breakOut)) {
                         $breakOut = $time12;
@@ -919,7 +964,7 @@ class DTRController extends Controller
                 $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
 
                 $dayLogs = $daysGroup->where('log_date', $dateStr)
-                    ->map(fn($log) => ['time' => $log->log_time])
+                    ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
                     ->values()
                     ->toArray();
 
@@ -935,5 +980,16 @@ class DTRController extends Controller
         }
 
         return response()->json(['records' => $result]);
+    }
+
+    public function updateLogTime(Request $request)
+    {
+        $id = $request->input('id');
+        $newTime = $request->input('time');
+
+        $record = DTRRecord::findOrFail($id);
+        $record->update(['log_time' => $newTime]);
+
+        return response()->json(['status' => 'success']);
     }
 }

@@ -139,26 +139,49 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
 
     const format12Hour = (time) => {
         if (!time) return '';
-        let [hour, minute] = time.split(':').map(Number);
+        const timeStr = typeof time === 'object' ? time.time : time;
+        let [hour, minute] = timeStr.split(':').map(Number);
         hour = hour % 12 || 12;
         return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     };
 
-    const processLogs = (logs) => {
-        if (!logs || logs.length === 0) return { inTime: '', breakOut: '', breakIn: '', outTime: '' };
-        const times = logs.map(l => l.time).sort();
-        let inTime = '', breakOut = '', breakIn = '', outTime = '';
+    const updateLogTime = async (id, time, employeeName) => {
+        try {
+            await axios.post('/update-log-time', { id, time });
+            handleEmployeeSelect(employeeName);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update time.');
+        }
+    };
 
-        times.forEach(time => {
-            const [h, m] = time.split(':').map(Number);
+    const processLogs = (logs) => {
+        if (!logs || logs.length === 0) return { inTime: null, breakOut: null, breakIn: null, outTime: null };
+        const sortedLogs = [...logs].sort((a, b) => a.time.localeCompare(b.time));
+        let inTime = null, breakOut = null, breakIn = null, outTime = null;
+
+        sortedLogs.forEach(log => {
+            const [h, m] = log.time.split(':').map(Number);
             const hm = h + m / 60;
-            if (hm >= 5 && hm < 12 && !inTime) inTime = time;
-            if (hm >= 12 && hm < 13 && !breakOut) breakOut = time;
-            if (breakOut && hm >= 12 && hm < 14 && !breakIn && time !== breakOut) breakIn = time;
-            if (hm >= 13) outTime = time;
+            if (hm >= 5 && hm < 12 && !inTime) inTime = log;
+            if (hm >= 12 && hm < 13 && !breakOut) breakOut = log;
+            if (breakOut && hm >= 12 && hm < 14 && !breakIn && log.time !== breakOut.time) breakIn = log;
+            if (hm >= 13) outTime = log;
         });
 
         return { inTime, breakOut, breakIn, outTime };
+    };
+
+    const handleDeleteMonth = async (employee, month) => {
+        if (!confirm(`Are you sure you want to delete all records for ${employee} in ${month}?`)) return;
+        
+        try {
+            await axios.post('/delete-month-records', { employee, month });
+            handleEmployeeSelect(employee);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete records.');
+        }
     };
 
     const performRequest = ({ searchValue, monthValue, yearValue, statusValue, updateList = true }) => {
@@ -298,8 +321,10 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             handleDownload={handleDownload}
                             handleDownloadDocx={handleDownloadDocx}
                             updateSchedule={updateSchedule}
+                            updateLogTime={updateLogTime}
                             processLogs={processLogs}
                             format12Hour={format12Hour}
+                            handleDeleteMonth={handleDeleteMonth}
                         />
                     </div>
                 </div>
