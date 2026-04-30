@@ -345,7 +345,10 @@ class DTRController extends Controller
         foreach ($records as $name => $months) {
             foreach ($months as $month => $days) {
                 foreach ($days as $date => $rec) {
-                    $employee = \App\Models\Employee::firstOrCreate(['name' => $name]);
+                    $employee = $this->findExistingEmployee($name);
+                    if (!$employee) {
+                        $employee = \App\Models\Employee::create(['name' => $name]);
+                    }
                     $status = $employee->status;
                     foreach ($rec['logs'] as $log) {
                         DTRRecord::firstOrCreate([
@@ -377,6 +380,29 @@ class DTRController extends Controller
         ];
     }
 
+
+    private function findExistingEmployee($name)
+    {
+        // 1. Exact match
+        $exact = \App\Models\Employee::where('name', $name)->first();
+        if ($exact) return $exact;
+        
+        // 2. Normalized match (remove dots and extra spaces)
+        $normalized = strtoupper(preg_replace('/\./', '', $name));
+        $normalized = trim(preg_replace('/\s+/', ' ', $normalized));
+        
+        $employees = \App\Models\Employee::all();
+        foreach ($employees as $emp) {
+            $empNormalized = strtoupper(preg_replace('/\./', '', $emp->name));
+            $empNormalized = trim(preg_replace('/\s+/', ' ', $empNormalized));
+            
+            if ($normalized === $empNormalized) {
+                return $emp;
+            }
+        }
+        
+        return null;
+    }
 
     public function history()
     {

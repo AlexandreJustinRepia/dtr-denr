@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, Link } from '@inertiajs/react';
 import { 
     Users, 
     Search, 
@@ -13,17 +13,27 @@ import {
     ShieldCheck,
     Clock,
     Filter,
-    ArrowLeft
+    ArrowLeft,
+    GitMerge,
+    AlertCircle,
+    Check
 } from 'lucide-react';
 
 export default function EmployeeManagement({ employees }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [statusFilter, setStatusFilter] = useState('ALL');
+    
+    // Merge state
+    const [mergeMode, setMergeMode] = useState(false);
+    const [sourceEmployee, setSourceEmployee] = useState(null);
+    const [targetEmployee, setTargetEmployee] = useState(null);
 
-    const { data, setData, patch, delete: destroy, processing, reset } = useForm({
+    const { data, setData, patch, delete: destroy, post, processing, reset } = useForm({
         name: '',
         status: '',
+        source_id: '',
+        target_id: '',
     });
 
     const startEditing = (employee) => {
@@ -51,6 +61,34 @@ export default function EmployeeManagement({ employees }) {
         }
     };
 
+    const startMerge = (employee) => {
+        setMergeMode(true);
+        setSourceEmployee(employee);
+    };
+
+    const cancelMerge = () => {
+        setMergeMode(false);
+        setSourceEmployee(null);
+        setTargetEmployee(null);
+    };
+
+    const handleMerge = () => {
+        if (!sourceEmployee || !targetEmployee) return;
+
+        if (confirm(`Are you sure you want to merge "${sourceEmployee.name}" into "${targetEmployee.name}"? \n\nAll DTR records for ${sourceEmployee.name} will be moved to ${targetEmployee.name}, and the duplicate profile will be deleted.`)) {
+            router.post(route('employees.merge'), {
+                source_id: sourceEmployee.id,
+                target_id: targetEmployee.id
+            }, {
+                onSuccess: () => {
+                    setMergeMode(false);
+                    setSourceEmployee(null);
+                    setTargetEmployee(null);
+                }
+            });
+        }
+    };
+
     const filteredEmployees = employees.filter(emp => {
         const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || emp.status === statusFilter;
@@ -65,12 +103,12 @@ export default function EmployeeManagement({ employees }) {
             <header className="bg-green-700 pt-12 pb-24 px-6 relative overflow-hidden text-white">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between relative z-10">
                     <div className="flex items-center gap-6 mb-8 md:mb-0">
-                        <button 
-                            onClick={() => window.history.back()}
+                        <Link 
+                            href={route('dtr.view')}
                             className="bg-white/10 p-3 rounded-2xl hover:bg-white/20 transition-all border border-white/10"
                         >
                             <ArrowLeft className="w-6 h-6 text-white" />
-                        </button>
+                        </Link>
                         <div className="bg-white p-4 rounded-3xl shadow-xl shadow-green-900/20">
                             <Users className="w-10 h-10 text-green-700" />
                         </div>
@@ -95,6 +133,49 @@ export default function EmployeeManagement({ employees }) {
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto -mt-16 px-6 pb-20 relative z-20">
+                
+                {/* Merge Banner */}
+                {mergeMode && (
+                    <div className="bg-blue-600 text-white p-6 rounded-[32px] mb-8 shadow-2xl shadow-blue-600/30 flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top duration-500">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md border border-white/20">
+                                <GitMerge className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-lg leading-tight uppercase tracking-tight">Consolidation Mode</h3>
+                                <p className="text-blue-100 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                    Merging: <span className="bg-white/10 px-2 py-0.5 rounded text-white">{sourceEmployee?.name}</span> 
+                                    {targetEmployee && (
+                                        <>
+                                            <span className="text-white">into</span> 
+                                            <span className="bg-white/10 px-2 py-0.5 rounded text-white">{targetEmployee?.name}</span>
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {targetEmployee ? (
+                                <button 
+                                    onClick={handleMerge}
+                                    className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-blue-50 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                                >
+                                    <Check size={14} />
+                                    Confirm Merge
+                                </button>
+                            ) : (
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200 bg-blue-700 px-4 py-2 rounded-xl">Select Target Employee below</span>
+                            )}
+                            <button 
+                                onClick={cancelMerge}
+                                className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all active:scale-95 border border-white/20"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 p-8 md:p-10 mb-10 border border-gray-100 overflow-hidden">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
                         {/* Search */}
@@ -146,7 +227,12 @@ export default function EmployeeManagement({ employees }) {
                             <tbody className="divide-y divide-gray-100">
                                 {filteredEmployees.length > 0 ? (
                                     filteredEmployees.map((emp) => (
-                                        <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors group">
+                                        <tr 
+                                            key={emp.id} 
+                                            className={`hover:bg-gray-50/50 transition-colors group ${
+                                                mergeMode && targetEmployee?.id === emp.id ? 'bg-blue-50/50 border-l-4 border-blue-500' : ''
+                                            } ${mergeMode && sourceEmployee?.id === emp.id ? 'opacity-40 pointer-events-none grayscale' : ''}`}
+                                        >
                                             <td className="px-8 py-6">
                                                 {editingId === emp.id ? (
                                                     <input
@@ -157,7 +243,9 @@ export default function EmployeeManagement({ employees }) {
                                                     />
                                                 ) : (
                                                     <div className="flex items-center gap-3">
-                                                        <div className="bg-green-100 p-2 rounded-lg text-green-700 font-bold text-xs uppercase">
+                                                        <div className={`p-2 rounded-lg font-bold text-xs uppercase ${
+                                                            emp.status === 'PERMANENT' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                                        }`}>
                                                             {emp.name.charAt(0)}
                                                         </div>
                                                         <span className="text-sm font-black text-gray-800">{emp.name}</span>
@@ -193,7 +281,18 @@ export default function EmployeeManagement({ employees }) {
                                             </td>
                                             <td className="px-8 py-6 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    {editingId === emp.id ? (
+                                                    {mergeMode ? (
+                                                        <button 
+                                                            onClick={() => setTargetEmployee(emp)}
+                                                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                                                targetEmployee?.id === emp.id 
+                                                                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                                                                : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                                            }`}
+                                                        >
+                                                            {targetEmployee?.id === emp.id ? 'Selected Target' : 'Select as Target'}
+                                                        </button>
+                                                    ) : editingId === emp.id ? (
                                                         <>
                                                             <button 
                                                                 onClick={() => handleUpdate(emp.id)}
@@ -214,8 +313,15 @@ export default function EmployeeManagement({ employees }) {
                                                     ) : (
                                                         <>
                                                             <button 
-                                                                onClick={() => startEditing(emp)}
+                                                                onClick={() => startMerge(emp)}
                                                                 className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all active:scale-90 opacity-0 group-hover:opacity-100"
+                                                                title="Merge with Duplicate"
+                                                            >
+                                                                <GitMerge size={16} />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => startEditing(emp)}
+                                                                className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all active:scale-90 opacity-0 group-hover:opacity-100"
                                                                 title="Edit Personnel"
                                                             >
                                                                 <Edit2 size={16} />

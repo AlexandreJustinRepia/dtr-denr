@@ -36,6 +36,7 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::get('/admin/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::patch('/admin/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::delete('/admin/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
+    Route::post('/admin/employees/merge', [EmployeeController::class, 'merge'])->name('employees.merge');
 });
 
 

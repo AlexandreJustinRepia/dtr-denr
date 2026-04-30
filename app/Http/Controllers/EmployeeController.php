@@ -47,4 +47,27 @@ class EmployeeController extends Controller
         $employee->delete();
         return back()->with('success', 'Employee deleted successfully.');
     }
+
+    public function merge(Request $request)
+    {
+        $request->validate([
+            'source_id' => 'required|exists:employees,id',
+            'target_id' => 'required|exists:employees,id|different:source_id',
+        ]);
+
+        $source = Employee::findOrFail($request->source_id);
+        $target = Employee::findOrFail($request->target_id);
+
+        // Reassign all DTR records
+        \App\Models\DTRRecord::where('employee_id', $source->id)->update([
+            'employee_id' => $target->id,
+            'employee_name' => $target->name,
+            'status' => $target->status
+        ]);
+
+        // Delete the duplicate employee
+        $source->delete();
+
+        return back()->with('success', "Merged {$source->name} into {$target->name} successfully.");
+    }
 }
