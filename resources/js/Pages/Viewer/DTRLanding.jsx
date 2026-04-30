@@ -7,7 +7,7 @@ import EmployeeList from './Components/EmployeeList';
 import DTRRecords from "./Components/DTRRecords";
 import axios from 'axios';
 
-export default function DTRLanding({ employees, filters, availableDates }) {
+export default function DTRLanding({ employees, filters, availableDates, stats }) {
     const dtrRef = useRef(null);
     const dtrContentRef = useRef(null);
 
@@ -98,6 +98,31 @@ export default function DTRLanding({ employees, filters, availableDates }) {
             console.error(error);
             alert('Failed to generate DOCX. Please try again.');
         } finally {
+            setDownloadLoading(prev => ({ ...prev, [key]: false }));
+        }
+    };
+    const handleBulkDownload = async () => {
+        if (!status) {
+            alert('Please select an employment status (Permanent or JO) first.');
+            return;
+        }
+
+        const key = `bulk-${status}-${filterMonth}-${filterYear}`;
+        setDownloadLoading(prev => ({ ...prev, [key]: true }));
+
+        try {
+            // Using window.location.href is more reliable for large file downloads 
+            // as it handles authentication cookies and streaming automatically.
+            window.location.href = `/generate-bulk-dtr/${filterMonth}/${filterYear}/${status}`;
+            
+            // We set a timeout to clear the loading state since we can't detect when the download starts
+            setTimeout(() => {
+                setDownloadLoading(prev => ({ ...prev, [key]: false }));
+            }, 3000);
+            return;
+        } catch (error) {
+            console.error(error);
+            alert('Failed to initiate bulk download. Please try again.');
             setDownloadLoading(prev => ({ ...prev, [key]: false }));
         }
     };
@@ -193,6 +218,23 @@ export default function DTRLanding({ employees, filters, availableDates }) {
                             </div>
                             <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-1">PENRO Bulacan</h1>
                             <p className="text-sm font-bold uppercase tracking-widest text-green-50 italic">Matrix DTR Access Point</p>
+                            
+                            <div className="flex gap-3 mt-6">
+                                <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_10px_rgba(96,165,250,0.5)]"></div>
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-100/70 leading-none mb-1">Permanent</p>
+                                        <p className="text-lg font-black leading-none">{stats?.permanent || 0}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_10px_rgba(251,146,60,0.5)]"></div>
+                                    <div>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-100/70 leading-none mb-1">Job Order</p>
+                                        <p className="text-lg font-black leading-none">{stats?.jo || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -219,6 +261,8 @@ export default function DTRLanding({ employees, filters, availableDates }) {
                     handleKeyDown={handleKeyDown} handleSearch={handleSearch} handleReset={handleReset}
                     selectedEmployee={selectedEmployee} performRequest={performRequest}
                     status={status} setStatus={setStatus} loadingEmployees={loadingEmployees}
+                    handleBulkDownload={handleBulkDownload}
+                    downloadLoading={downloadLoading}
                 />
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mt-10">

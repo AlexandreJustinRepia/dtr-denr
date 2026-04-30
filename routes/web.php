@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::get('/fetch-dtr/{employee}/{month}/{year}', [DTRController::class , 'fetchEmployeeDTR'])
         ->name('dtr.fetch');
     Route::post('/update-schedule', [DTRController::class , 'updateDaySchedule'])->name('dtr.update-schedule');
+    Route::get('/generate-bulk-dtr/{month}/{year}/{status}', [DTRController::class , 'downloadBulkPdf'])->name('dtr.generate-bulk');
 });
 
 

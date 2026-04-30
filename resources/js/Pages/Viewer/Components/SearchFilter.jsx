@@ -1,4 +1,4 @@
-import { Search, CalendarFold, Calendar1, Loader2, Zap, RotateCcw } from 'lucide-react';
+import { Search, CalendarFold, Calendar1, Loader2, Zap, RotateCcw, Download } from 'lucide-react';
 
 export default function SearchFilters({
     search,
@@ -16,6 +16,8 @@ export default function SearchFilters({
     status,
     setStatus,
     loadingEmployees,
+    handleBulkDownload,
+    downloadLoading
 }) {
     const handleFilterChange = (setter, type) => (e) => {
         const newValue = type === 'status' ? e.target.value : Number(e.target.value);
@@ -34,13 +36,32 @@ export default function SearchFilters({
         });
     };
 
+    const isBulkLoading = downloadLoading[`bulk-${status}-${filterMonth}-${filterYear}`];
+
     return (
         <div className="bg-white rounded-[40px] shadow-xl shadow-gray-200/50 p-8 md:p-10 mb-10 border border-gray-100 overflow-hidden">
-            <div className="flex items-center gap-3 mb-8">
-                <div className="bg-green-100 p-2 rounded-xl">
-                    <Search className="w-4 h-4 text-green-700" />
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="bg-green-100 p-2 rounded-xl">
+                        <Search className="w-4 h-4 text-green-700" />
+                    </div>
+                    <h2 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em]">Refine Retrieval Parameters</h2>
                 </div>
-                <h2 className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em]">Refine Retrieval Parameters</h2>
+
+                {status && (
+                    <button
+                        onClick={handleBulkDownload}
+                        disabled={loadingEmployees || isBulkLoading}
+                        className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        {isBulkLoading ? (
+                            <Loader2 size={12} className="animate-spin" />
+                        ) : (
+                            <Download size={12} />
+                        )}
+                        Download All {status} PDFs
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-end">
@@ -116,7 +137,7 @@ export default function SearchFilters({
                             disabled={loadingEmployees}
                         >
                             <option value="">All Status</option>
-                            <option value="Permanent">Permanent</option>
+                            <option value="PERMANENT">Permanent</option>
                             <option value="JO">Job Order (JO)</option>
                         </select>
                     </div>

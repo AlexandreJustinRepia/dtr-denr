@@ -12,6 +12,7 @@ use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
 use App\Models\DTRBatch;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
 
 class DTRController extends Controller
 {
@@ -498,9 +499,20 @@ class DTRController extends Controller
             })
             ->toArray();
 
+        // Calculate stats for the selected month
+        $stats = DTRRecord::whereYear('log_date', $yearFilter)
+            ->whereMonth('log_date', $monthFilter)
+            ->selectRaw('status, COUNT(DISTINCT employee_name) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
         return Inertia::render('Viewer/DTRLanding', [
             'records' => $records,
             'employees' => $employees->toArray(),
+            'stats' => [
+                'permanent' => $stats['PERMANENT'] ?? 0,
+                'jo' => $stats['JO'] ?? 0,
+            ],
             'filters' => [
                 'search' => $search,
                 'month' => (int) $monthFilter,
@@ -513,8 +525,16 @@ class DTRController extends Controller
 
     public function generateDocx($employee, $month)
     {
-        $parsedMonth = Carbon::parse($month);
+        $outputDocx = $this->createDocxFile($employee, $month);
+        if (!$outputDocx) {
+            return response()->json(['error' => 'Failed to generate document.'], 500);
+        }
+        return response()->download($outputDocx)->deleteFileAfterSend(true);
+    }
 
+    private function createDocxFile($employee, $month, $customOutputDir = null)
+    {
+        $parsedMonth = Carbon::parse($month);
         $monthName = $parsedMonth->format('F Y');
         $yearMonth = $parsedMonth->format('Y-m');
 
@@ -526,6 +546,11 @@ class DTRController extends Controller
 
         $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
         $templatePath = storage_path("app/templates/{$templateFile}");
+        
+        if (!file_exists($templatePath)) {
+            return null;
+        }
+
         $records = DTRRecord::where('employee_name', $employee)
             ->whereMonth('log_date', $parsedMonth->month)
             ->whereYear('log_date', $parsedMonth->year)
@@ -673,13 +698,18 @@ class DTRController extends Controller
             $templateProcessor->setValue("under2#{$day}", $underStr);
         }
 
-        // Save DOCX (no conversion)
-        $outputDocx = storage_path("app/public/DTR_{$employee}_{$month}.docx");
-        $templateProcessor->saveAs($outputDocx);
+        $safeName = str_replace([' ', '/', '\\'], '_', $employee);
+        $fileName = "DTR_{$safeName}_{$month}.docx";
+        $outputDir = $customOutputDir ?: storage_path("app/public");
+        if (!file_exists($outputDir)) {
+            mkdir($outputDir, 0777, true);
+        }
+        $outputPath = $outputDir . DIRECTORY_SEPARATOR . $fileName;
+        $templateProcessor->saveAs($outputPath);
 
-        // Download DOCX
-        return response()->download($outputDocx);
+        return $outputPath;
     }
+
 
 
     public function updateDaySchedule()
@@ -715,187 +745,138 @@ class DTRController extends Controller
 
     public function generatePdf($employee, $month)
     {
-        $parsedMonth = Carbon::parse($month);
-
-        $monthName = $parsedMonth->format('F Y');
-        $yearMonth = $parsedMonth->format('Y-m');
-
-        // Check status for template selection
-        $status = DTRRecord::where('employee_name', $employee)
-            ->whereMonth('log_date', $parsedMonth->month)
-            ->whereYear('log_date', $parsedMonth->year)
-            ->value('status');
-
-        $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
-        $templatePath = storage_path("app/templates/{$templateFile}");
-        $records = DTRRecord::where('employee_name', $employee)
-            ->whereMonth('log_date', $parsedMonth->month)
-            ->whereYear('log_date', $parsedMonth->year)
-            ->orderBy('log_date')
-            ->orderBy('log_time')
-            ->get()
-            ->groupBy('log_date');
-
-        $templateProcessor = new TemplateProcessor($templatePath);
-
-        // Replace placeholders for employee name and month
-        $templateProcessor->setValue('employee_name', strtoupper($employee));
-        $templateProcessor->setValue('month_name', $monthName);
-
-        $daysInMonth = $parsedMonth->daysInMonth;
-
-        // Clone rows for both tables
-        $templateProcessor->cloneRow('row1', $daysInMonth);
-        $templateProcessor->cloneRow('row2', $daysInMonth);
-
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $date = Carbon::createFromFormat('Y-m-d', "{$yearMonth}-{$day}");
-            $dateStr = $date->format('Y-m-d');
-            $weekday = $date->format('D');
-            $logs = $records[$dateStr] ?? collect();
-
-            // Handle per-day schedule toggle
-            $daySchedule = $logs->first()?->schedule_type;
-
-            $checkIn = $breakOut = $breakIn = $checkOut = '';
-
-            foreach ($logs as $log) {
-                $time24 = substr($log->log_time, 0, 5);
-                $timeObj = Carbon::createFromFormat('H:i', $time24);
-                $hour = (int) $timeObj->format('H');
-                $time12 = $timeObj->format('g:i');
-
-                if ($hour >= 5 && $hour <= 11) {
-                    $checkIn = $time12;
-                } elseif ($hour == 12) {
-                    if (empty($breakOut)) {
-                        $breakOut = $time12;
-                    } else {
-                        $breakIn = $time12;
-                    }
-                } elseif ($hour >= 13 && $hour <= 21) {
-                    $checkOut = $time12;
-                }
-            }
-
-            $lateMinutes = null;
-            $undertimeMinutes = null;
-
-            if ($checkIn && $checkOut) {
-                $timeToMins = function ($t, $isPM = false) {
-                    if (!$t)
-                        return 0;
-                    $parts = explode(':', $t);
-                    $h = (int) $parts[0];
-                    $m = (int) $parts[1];
-
-                    if ($isPM && $h < 12)
-                        $h += 12;
-                    if (!$isPM && $h == 12)
-                        $h = 0;
-
-                    return ($h * 60) + $m;
-                };
-
-                $dayOfWeek = $date->dayOfWeek; // 0 (Sun) - 6 (Sat)
-
-                if ($daySchedule === '10HR') {
-                    $schedStartMins = 7 * 60;
-                    $schedEndMins = 18 * 60;
-                    $latestStart = 8 * 60; // 8:00 AM
-                } elseif ($daySchedule === '8HR') {
-                    $schedStartMins = 8 * 60;
-                    $schedEndMins = 17 * 60;
-                    $latestStart = 9 * 60; // 9:00 AM
-                } else {
-                    $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
-                    $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
-                    $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
-                    $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
-                }
-
-                $shiftLength = $schedEndMins - $schedStartMins;
-
-                $inMins = $checkIn ? $timeToMins($checkIn, false) : null; // check in is AM
-                $outMins = $checkOut ? $timeToMins($checkOut, true) : null; // check out is PM
-
-                if ($inMins !== null) {
-                    // 1. Calculate Late (strictly based on latest allowed start)
-                    $late = max(0, $inMins - $latestStart);
-                    if ($late > 0) $lateMinutes = $late;
-
-                    // 2. Calculate Effective Start for Duration
-                    $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
-                    $earliestStart = $is10Hr ? 420 : 360; // 10H = 7AM, 8H = 6AM
-                    $effectiveStartMins = max($earliestStart, $inMins);
-
-                    // 3. Calculate Undertime (must fulfill total shift duration)
-                    if ($outMins !== null) {
-                        $requiredEndMins = $effectiveStartMins + $shiftLength;
-                        $under = max(0, $requiredEndMins - $outMins);
-                        if ($under > 0) $undertimeMinutes = $under;
-                    }
-                }
-            }
-
-            $formatMins = function ($mins) {
-                if (!$mins)
-                    return '';
-                $h = floor($mins / 60);
-                $m = $mins % 60;
-                if ($h > 0 && $m > 0)
-                    return "{$h} hr {$m} min";
-                if ($h > 0)
-                    return "{$h} hr";
-                return "{$m} min";
-            };
-
-            $lateStr = $formatMins($lateMinutes);
-            $underStr = $formatMins($undertimeMinutes);
-
-            // Fill first table (Original)
-            $templateProcessor->setValue("row1#{$day}", $day);
-            $templateProcessor->setValue("d1#{$day}", $weekday);
-            $templateProcessor->setValue("in1#{$day}", $checkIn);
-            $templateProcessor->setValue("bout1#{$day}", $breakOut);
-            $templateProcessor->setValue("bin1#{$day}", $breakIn);
-            $templateProcessor->setValue("out1#{$day}", $checkOut);
-            $templateProcessor->setValue("late1#{$day}", $lateStr);
-            $templateProcessor->setValue("under1#{$day}", $underStr);
-
-            // Fill second table (Duplicate)
-            $templateProcessor->setValue("row2#{$day}", $day);
-            $templateProcessor->setValue("d2#{$day}", $weekday);
-            $templateProcessor->setValue("in2#{$day}", $checkIn);
-            $templateProcessor->setValue("bout2#{$day}", $breakOut);
-            $templateProcessor->setValue("bin2#{$day}", $breakIn);
-            $templateProcessor->setValue("out2#{$day}", $checkOut);
-            $templateProcessor->setValue("late2#{$day}", $lateStr);
-            $templateProcessor->setValue("under2#{$day}", $underStr);
+        $outputDocx = $this->createDocxFile($employee, $month);
+        if (!$outputDocx) {
+            return response()->json(['error' => 'Failed to generate document.'], 500);
         }
 
-        // ✅ Save temporary DOCX file
-        $outputDocx = storage_path("app/public/DTR_{$employee}_{$month}.docx");
-        $templateProcessor->saveAs($outputDocx);
-
-        // ✅ Convert DOCX → PDF using LibreOffice headless (Windows)
-        $outputPdf = storage_path("app/public/DTR_{$employee}_{$month}.pdf");
-
+        $outputPdf = str_replace('.docx', '.pdf', $outputDocx);
         $soffice = $this->getSofficePath();
+        
         if (!$soffice) {
-            return response()->json(['error' => 'LibreOffice (soffice.exe) not found on server. Please check installation.'], 500);
+            return response()->json(['error' => 'LibreOffice (soffice.exe) not found on server.'], 500);
         }
 
         $command = '"' . $soffice . '" --headless --convert-to pdf "' . $outputDocx . '" --outdir "' . dirname($outputPdf) . '"';
         exec($command);
 
-        // ✅ Delete the DOCX after conversion (optional but cleaner)
         if (file_exists($outputDocx)) {
             unlink($outputDocx);
         }
 
-        // ✅ Return the generated PDF
+        if (!file_exists($outputPdf)) {
+            return response()->json(['error' => 'PDF conversion failed.'], 500);
+        }
+
         return response()->download($outputPdf)->deleteFileAfterSend(true);
+    }
+
+    public function downloadBulkPdf($month, $year, $status)
+    {
+        set_time_limit(0); // Increase execution time for large batches
+        ini_set('memory_limit', '1024M'); // Increase memory limit for PDF merging
+        
+        $employees = DTRRecord::whereYear('log_date', $year)
+            ->whereMonth('log_date', $month)
+            ->where('status', $status)
+            ->distinct('employee_name')
+            ->pluck('employee_name');
+
+        if ($employees->isEmpty()) {
+            return response()->json(['error' => 'No records found for the selected criteria.'], 404);
+        }
+
+        // Create a temporary directory for the batch
+        $batchId = uniqid('dtr_bulk_');
+        $tempDir = storage_path("app/temp_{$batchId}");
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0777, true);
+        }
+
+        $docxFiles = [];
+        $monthStr = "{$year}-" . str_pad($month, 2, '0', STR_PAD_LEFT);
+        foreach ($employees as $employee) {
+            $docxPath = $this->createDocxFile($employee, $monthStr, $tempDir);
+            if ($docxPath) {
+                $docxFiles[] = $docxPath;
+            }
+        }
+
+        if (empty($docxFiles)) {
+            return response()->json(['error' => 'Failed to generate documents.'], 500);
+        }
+
+        // Convert all to PDF
+        $soffice = $this->getSofficePath();
+        if (!$soffice) {
+            return response()->json(['error' => 'LibreOffice not found.'], 500);
+        }
+
+        // Convert all DOCX in the temp directory to PDF in a single batch call (MUCH FASTER)
+        $filesToConvert = glob($tempDir . DIRECTORY_SEPARATOR . "*.docx");
+        if (!empty($filesToConvert)) {
+            $escapedFiles = array_map(fn($f) => '"' . $f . '"', $filesToConvert);
+            $command = '"' . $soffice . '" --headless --convert-to pdf ' . implode(' ', $escapedFiles) . ' --outdir "' . $tempDir . '"';
+            exec($command);
+            
+            // Clean up DOCX files
+            foreach ($filesToConvert as $docx) {
+                if (file_exists($docx)) unlink($docx);
+            }
+        }
+
+        // Check if PDFs were actually generated
+        $generatedPdfs = glob($tempDir . DIRECTORY_SEPARATOR . "*.pdf");
+        if (empty($generatedPdfs)) {
+            File::deleteDirectory($tempDir);
+            return response()->json(['error' => 'PDF conversion failed. No PDF files were created.'], 500);
+        }
+
+        // Merge all PDFs into a single PDF
+        $finalPdfName = "DTR_SUMMARY_{$status}_{$monthStr}.pdf";
+        $finalPdfPath = storage_path("app/{$finalPdfName}"); // Not in public
+
+        try {
+            $mpdf = new \Mpdf\Mpdf();
+            $pdfFiles = glob($tempDir . DIRECTORY_SEPARATOR . "*.pdf");
+            
+            // Sort files alphabetically by employee name (extracted from filename)
+            sort($pdfFiles);
+
+            foreach ($pdfFiles as $index => $pdf) {
+                $pageCount = $mpdf->setSourceFile($pdf);
+                for ($i = 1; $i <= $pageCount; $i++) {
+                    $tplId = $mpdf->importPage($i);
+                    $mpdf->AddPage();
+                    $mpdf->UseTemplate($tplId);
+                }
+            }
+            $mpdf->Output($finalPdfPath, 'F');
+        } catch (\Throwable $e) {
+            // Fallback to ZIP if merging fails
+            logger('Bulk PDF Merge Failed: ' . $e->getMessage());
+            $zipName = "DTR_BULK_{$status}_{$monthStr}.zip";
+            $zipPath = storage_path("app/{$zipName}");
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+                foreach (glob($tempDir . DIRECTORY_SEPARATOR . "*.pdf") as $pdf) {
+                    $zip->addFile($pdf, basename($pdf));
+                }
+                $zip->close();
+                File::deleteDirectory($tempDir);
+                
+                // Return ZIP but maybe inform the user? 
+                // Since this is a direct download, we just return the ZIP.
+                // The filename will have .zip so the frontend needs to handle it.
+                return response()->download($zipPath)->deleteFileAfterSend(true);
+            }
+            return response()->json(['error' => 'Failed to generate PDF: ' . $e->getMessage()], 500);
+        }
+
+        // Clean up temp dir
+        File::deleteDirectory($tempDir);
+
+        return response()->download($finalPdfPath)->deleteFileAfterSend(true);
     }
 
     public function fetchEmployeeDTR($employee, $month, $year, $status = null)
