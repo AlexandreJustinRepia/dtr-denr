@@ -10,10 +10,18 @@ use Inertia\Inertia;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $query = User::query();
+
+        if ($request->search) {
+            $query->where('name', 'like', "%{$request->search}%")
+                  ->orWhere('email', 'like', "%{$request->search}%");
+        }
+
         return Inertia::render('Admin/UserManagement', [
-            'users' => User::orderBy('name')->get(),
+            'users' => $query->orderBy('name')->paginate(10)->withQueryString(),
+            'filters' => $request->only(['search']),
         ]);
     }
 
@@ -26,14 +34,14 @@ class UserController extends Controller
             'role' => 'required|string|in:admin,user',
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
         ]);
 
-        return redirect()->back()->with('success', 'User created successfully.');
+        return response()->json(['message' => 'User created successfully.', 'user' => $user]);
     }
 
     public function update(Request $request, User $user)
@@ -59,17 +67,17 @@ class UserController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'User updated successfully.');
+        return response()->json(['message' => 'User updated successfully.', 'user' => $user]);
     }
 
     public function destroy(User $user)
     {
         if (auth()->id() === $user->id) {
-            return redirect()->back()->with('error', 'You cannot delete yourself.');
+            return response()->json(['error' => 'You cannot delete yourself.'], 403);
         }
 
         $user->delete();
 
-        return redirect()->back()->with('success', 'User deleted successfully.');
+        return response()->json(['message' => 'User deleted successfully.']);
     }
 }

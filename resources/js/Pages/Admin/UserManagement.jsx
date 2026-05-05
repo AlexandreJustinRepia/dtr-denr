@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, router, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import Modal from '@/Components/Modal';
+import axios from 'axios';
 import { 
     Users, 
     Search, 
@@ -11,23 +13,24 @@ import {
     UserPlus,
     ShieldCheck,
     Shield,
-    AlertCircle
+    ChevronLeft,
+    ChevronRight,
+    Loader2,
+    CheckCircle2
 } from 'lucide-react';
 
-export default function UserManagement({ users }) {
-    const [searchTerm, setSearchTerm] = useState('');
+export default function UserManagement({ users, filters }) {
+    const [searchTerm, setSearchTerm] = useState(filters?.search || '');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
     const [editingId, setEditingId] = useState(null);
-    const [isCreating, setIsCreating] = useState(false);
+    
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [successMessage, setSuccessMessage] = useState(null);
 
-    // Form for creating a new user
-    const { 
-        data: createData, 
-        setData: setCreateData, 
-        post: createPost, 
-        processing: createProcessing, 
-        errors: createErrors,
-        reset: createReset 
-    } = useForm({
+    // Form State
+    const [form, setForm] = useState({
         name: '',
         email: '',
         password: '',
@@ -35,79 +38,115 @@ export default function UserManagement({ users }) {
         role: 'user',
     });
 
-    // Form for editing an existing user
-    const { 
-        data: editData, 
-        setData: setEditData, 
-        patch: editPatch, 
-        processing: editProcessing, 
-        errors: editErrors,
-        reset: editReset 
-    } = useForm({
-        name: '',
-        email: '',
-        role: '',
-        password: '',
-        password_confirmation: '',
-    });
+    const openCreateModal = () => {
+        setModalMode('create');
+        setEditingId(null);
+        setErrors({});
+        setForm({
+            name: '',
+            email: '',
+            password: '',
+            password_confirmation: '',
+            role: 'user',
+        });
+        setIsModalOpen(true);
+    };
 
-    const startEditing = (user) => {
+    const openEditModal = (user) => {
+        setModalMode('edit');
         setEditingId(user.id);
-        setIsCreating(false);
-        setEditData({
+        setErrors({});
+        setForm({
             name: user.name,
             email: user.email,
             role: user.role,
             password: '',
             password_confirmation: '',
         });
+        setIsModalOpen(true);
     };
 
-    const cancelEditing = () => {
-        setEditingId(null);
-        editReset();
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setErrors({});
     };
 
-    const handleUpdate = (id) => {
-        editPatch(route('users.update', id), {
+    const showSuccess = (message) => {
+        setSuccessMessage(message);
+        setTimeout(() => setSuccessMessage(null), 3000);
+    };
+
+    const handleSearch = () => {
+        router.get(route('users.index'), { search: searchTerm }, {
+            preserveState: true,
             preserveScroll: true,
-            onSuccess: () => {
-                setEditingId(null);
-                editReset();
-            },
+            replace: true
         });
     };
 
-    const handleDelete = (id) => {
-        if (confirm('Are you sure you want to remove this user? This will revoke their system access.')) {
-            router.delete(route('users.destroy', id), {
-                preserveScroll: true,
-            });
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            handleSearch();
+        }, 300);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setProcessing(true);
+        setErrors({});
+
+        try {
+            if (modalMode === 'create') {
+                await axios.post(route('users.store'), form);
+                showSuccess('User registered successfully');
+            } else {
+                await axios.patch(route('users.update', editingId), form);
+                showSuccess('User updated successfully');
+            }
+            closeModal();
+            router.reload({ only: ['users'] });
+        } catch (error) {
+            if (error.response?.status === 422) {
+                setErrors(error.response.data.errors);
+            }
+        } finally {
+            setProcessing(false);
         }
     };
 
-    const handleCreate = (e) => {
-        e.preventDefault();
-        createPost(route('users.store'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                setIsCreating(false);
-                createReset();
-            },
-        });
+    const handleDelete = async (id) => {
+        if (!confirm('Are you sure you want to remove this user? This will revoke their system access.')) return;
+        
+        setProcessing(true);
+        try {
+            await axios.delete(route('users.destroy', id));
+            showSuccess('User removed successfully');
+            router.reload({ only: ['users'] });
+        } catch (error) {
+            console.error(error);
+            alert('Failed to delete user.');
+        } finally {
+            setProcessing(false);
+        }
     };
-
-    const filteredUsers = users.filter(user => {
-        return user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-               user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    });
 
     return (
         <AuthenticatedLayout header="System Users">
             <Head title="User Management | PENRO Bulacan" />
 
-            <div className="space-y-6">
+            <div className="space-y-6 relative">
                 
+                {/* Success Message Toast */}
+                {successMessage && (
+                    <div className="fixed top-20 right-6 z-[60] animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="bg-green-800 text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 border border-green-600">
+                            <CheckCircle2 size={18} className="text-green-200" />
+                            <p className="text-sm font-bold uppercase tracking-wide">{successMessage}</p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Header Actions */}
                 <div className="bg-white rounded border border-gray-200 shadow-sm p-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -125,105 +164,15 @@ export default function UserManagement({ users }) {
                             </div>
                         </div>
                         
-                        {!isCreating && (
-                            <button 
-                                onClick={() => { setIsCreating(true); setEditingId(null); }}
-                                className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded text-sm font-semibold transition-colors mt-5"
-                            >
-                                <UserPlus size={16} />
-                                Create New User
-                            </button>
-                        )}
+                        <button 
+                            onClick={openCreateModal}
+                            className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2 rounded text-sm font-semibold transition-colors mt-5"
+                        >
+                            <UserPlus size={16} />
+                            Register User
+                        </button>
                     </div>
                 </div>
-
-                {/* Create Form */}
-                {isCreating && (
-                    <div className="bg-white rounded border border-green-200 shadow-sm overflow-hidden mb-6">
-                        <div className="bg-green-50 px-6 py-4 border-b border-green-200 flex items-center justify-between">
-                            <h3 className="font-bold text-green-900 flex items-center gap-2">
-                                <UserPlus size={18} />
-                                Register New System User
-                            </h3>
-                            <button 
-                                onClick={() => { setIsCreating(false); createReset(); }}
-                                className="text-green-700 hover:bg-green-100 p-1 rounded transition-colors"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-                        
-                        <form onSubmit={handleCreate} className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
-                                    <input
-                                        type="text"
-                                        value={createData.name}
-                                        onChange={e => setCreateData('name', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                                        required
-                                    />
-                                    {createErrors.name && <p className="text-red-500 text-xs mt-1">{createErrors.name}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email Address</label>
-                                    <input
-                                        type="email"
-                                        value={createData.email}
-                                        onChange={e => setCreateData('email', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                                        required
-                                    />
-                                    {createErrors.email && <p className="text-red-500 text-xs mt-1">{createErrors.email}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password</label>
-                                    <input
-                                        type="password"
-                                        value={createData.password}
-                                        onChange={e => setCreateData('password', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                                        required
-                                    />
-                                    {createErrors.password && <p className="text-red-500 text-xs mt-1">{createErrors.password}</p>}
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Confirm Password</label>
-                                    <input
-                                        type="password"
-                                        value={createData.password_confirmation}
-                                        onChange={e => setCreateData('password_confirmation', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-700 uppercase mb-1">System Role</label>
-                                    <select
-                                        value={createData.role}
-                                        onChange={e => setCreateData('role', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
-                                    >
-                                        <option value="user">Standard User</option>
-                                        <option value="admin">Administrator</option>
-                                    </select>
-                                    {createErrors.role && <p className="text-red-500 text-xs mt-1">{createErrors.role}</p>}
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-end pt-4 border-t border-gray-100">
-                                <button
-                                    type="submit"
-                                    disabled={createProcessing}
-                                    className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded text-sm font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
-                                >
-                                    {createProcessing ? 'Saving...' : 'Create User'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
 
                 {/* Users List */}
                 <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
@@ -237,118 +186,41 @@ export default function UserManagement({ users }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                {filteredUsers.length > 0 ? (
-                                    filteredUsers.map((user) => (
+                                {users.data.length > 0 ? (
+                                    users.data.map((user) => (
                                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="px-6 py-3">
-                                                {editingId === user.id ? (
-                                                    <div className="space-y-2 max-w-sm">
-                                                        <input
-                                                            type="text"
-                                                            value={editData.name}
-                                                            onChange={(e) => setEditData('name', e.target.value)}
-                                                            className="w-full px-3 py-1.5 bg-white border border-green-500 rounded text-sm text-gray-900 focus:ring-1 focus:ring-green-500 outline-none"
-                                                            placeholder="Full Name"
-                                                        />
-                                                        {editErrors.name && <p className="text-red-500 text-xs">{editErrors.name}</p>}
-                                                        
-                                                        <input
-                                                            type="email"
-                                                            value={editData.email}
-                                                            onChange={(e) => setEditData('email', e.target.value)}
-                                                            className="w-full px-3 py-1.5 bg-white border border-green-500 rounded text-sm text-gray-900 focus:ring-1 focus:ring-green-500 outline-none"
-                                                            placeholder="Email Address"
-                                                        />
-                                                        {editErrors.email && <p className="text-red-500 text-xs">{editErrors.email}</p>}
-                                                        
-                                                        <div className="pt-2 border-t border-gray-200">
-                                                            <p className="text-xs text-gray-500 mb-1">Reset Password (leave blank to keep current)</p>
-                                                            <input
-                                                                type="password"
-                                                                value={editData.password}
-                                                                onChange={(e) => setEditData('password', e.target.value)}
-                                                                className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-900 focus:border-green-500 outline-none mb-2"
-                                                                placeholder="New Password"
-                                                            />
-                                                            <input
-                                                                type="password"
-                                                                value={editData.password_confirmation}
-                                                                onChange={(e) => setEditData('password_confirmation', e.target.value)}
-                                                                className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-900 focus:border-green-500 outline-none"
-                                                                placeholder="Confirm New Password"
-                                                            />
-                                                            {editErrors.password && <p className="text-red-500 text-xs mt-1">{editErrors.password}</p>}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        <span className="font-bold text-gray-900 block">{user.name}</span>
-                                                        <span className="text-xs text-gray-500">{user.email}</span>
-                                                    </div>
-                                                )}
+                                                <div>
+                                                    <span className="font-bold text-gray-900 block">{user.name}</span>
+                                                    <span className="text-xs text-gray-500">{user.email}</span>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-3 align-top">
-                                                {editingId === user.id ? (
-                                                    <div className="max-w-[200px]">
-                                                        <select
-                                                            value={editData.role}
-                                                            onChange={(e) => setEditData('role', e.target.value)}
-                                                            className="w-full px-3 py-1.5 bg-white border border-green-500 rounded text-sm text-gray-900 focus:ring-1 focus:ring-green-500 outline-none"
-                                                        >
-                                                            <option value="user">Standard User</option>
-                                                            <option value="admin">Administrator</option>
-                                                        </select>
-                                                        {editErrors.role && <p className="text-red-500 text-xs mt-1">{editErrors.role}</p>}
-                                                    </div>
-                                                ) : (
-                                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase border ${
-                                                        user.role === 'admin' 
-                                                            ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                                                            : 'bg-gray-50 text-gray-600 border-gray-200'
-                                                    }`}>
-                                                        {user.role === 'admin' ? <ShieldCheck size={14} /> : <Shield size={14} />}
-                                                        {user.role}
-                                                    </span>
-                                                )}
+                                            <td className="px-6 py-3">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${
+                                                    user.role === 'admin' 
+                                                        ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                                                        : 'bg-gray-50 text-gray-600 border-gray-200'
+                                                }`}>
+                                                    {user.role === 'admin' ? <ShieldCheck size={12} /> : <Shield size={12} />}
+                                                    {user.role}
+                                                </span>
                                             </td>
-                                            <td className="px-6 py-3 text-right align-top">
-                                                <div className="flex items-center justify-end gap-2 mt-1">
-                                                    {editingId === user.id ? (
-                                                        <>
-                                                            <button 
-                                                                onClick={() => handleUpdate(user.id)}
-                                                                disabled={editProcessing}
-                                                                className="p-1.5 bg-green-700 hover:bg-green-800 text-white rounded transition-colors"
-                                                                title="Save Changes"
-                                                            >
-                                                                <Save size={16} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={cancelEditing}
-                                                                className="p-1.5 bg-white hover:bg-gray-50 border border-gray-300 text-gray-600 rounded transition-colors"
-                                                                title="Cancel"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <button 
-                                                                onClick={() => startEditing(user)}
-                                                                className="p-1.5 text-green-700 hover:bg-green-50 rounded transition-colors border border-transparent hover:border-green-200"
-                                                                title="Edit User"
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                            <button 
-                                                                onClick={() => handleDelete(user.id)}
-                                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors border border-transparent hover:border-red-200"
-                                                                title="Delete User"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </>
-                                                    )}
+                                            <td className="px-6 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => openEditModal(user)}
+                                                        className="p-1.5 text-green-700 hover:bg-green-50 rounded transition-colors border border-transparent hover:border-green-200"
+                                                        title="Edit User"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(user.id)}
+                                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors border border-transparent hover:border-red-200"
+                                                        title="Delete User"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -366,9 +238,158 @@ export default function UserManagement({ users }) {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination */}
+                    {users.links.length > 3 && (
+                        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                            <div className="text-xs text-gray-500 font-medium">
+                                Showing <span className="text-gray-900">{users.from}</span> to <span className="text-gray-900">{users.to}</span> of <span className="text-gray-900">{users.total}</span> users
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {users.links.map((link, i) => {
+                                    if (link.label.includes('Previous')) {
+                                        return (
+                                            <Link
+                                                key={i}
+                                                href={link.url || '#'}
+                                                className={`p-2 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 transition-colors ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <ChevronLeft size={16} />
+                                            </Link>
+                                        );
+                                    }
+                                    if (link.label.includes('Next')) {
+                                        return (
+                                            <Link
+                                                key={i}
+                                                href={link.url || '#'}
+                                                className={`p-2 rounded border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 transition-colors ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <ChevronRight size={16} />
+                                            </Link>
+                                        );
+                                    }
+                                    return (
+                                        <Link
+                                            key={i}
+                                            href={link.url || '#'}
+                                            className={`min-w-[32px] h-8 flex items-center justify-center rounded text-xs font-bold border transition-colors ${
+                                                link.active 
+                                                    ? 'bg-green-700 border-green-700 text-white shadow-sm' 
+                                                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                                            } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
             </div>
+
+            {/* Create/Edit Modal */}
+            <Modal show={isModalOpen} onClose={closeModal} maxWidth="lg">
+                <div className="bg-white">
+                    <div className="bg-green-800 px-6 py-4 flex items-center justify-between">
+                        <h3 className="text-white font-bold uppercase tracking-wider flex items-center gap-2">
+                            {modalMode === 'create' ? <UserPlus size={18} /> : <Edit2 size={18} />}
+                            {modalMode === 'create' ? 'Register New User' : 'Edit System User'}
+                        </h3>
+                        <button onClick={closeModal} className="text-green-200 hover:text-white transition-colors">
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
+                            <input
+                                type="text"
+                                value={form.name}
+                                onChange={e => setForm({...form, name: e.target.value})}
+                                className={`w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                                required
+                            />
+                            {errors.name && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.name[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email Address</label>
+                            <input
+                                type="email"
+                                value={form.email}
+                                onChange={e => setForm({...form, email: e.target.value})}
+                                className={`w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+                                required
+                            />
+                            {errors.email && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.email[0]}</p>}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="col-span-2">
+                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">System Role</label>
+                                <select
+                                    value={form.role}
+                                    onChange={e => setForm({...form, role: e.target.value})}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                >
+                                    <option value="user">Standard User</option>
+                                    <option value="admin">Administrator</option>
+                                </select>
+                            </div>
+
+                            <div className="col-span-2 pt-2 border-t border-gray-100">
+                                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">
+                                    {modalMode === 'create' ? 'Password Credentials' : 'Reset Password (Leave blank to keep current)'}
+                                </label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <input
+                                            type="password"
+                                            value={form.password}
+                                            onChange={e => setForm({...form, password: e.target.value})}
+                                            className={`w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
+                                            placeholder="Password"
+                                            required={modalMode === 'create'}
+                                        />
+                                    </div>
+                                    <div>
+                                        <input
+                                            type="password"
+                                            value={form.password_confirmation}
+                                            onChange={e => setForm({...form, password_confirmation: e.target.value})}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
+                                            placeholder="Confirm"
+                                            required={modalMode === 'create'}
+                                        />
+                                    </div>
+                                </div>
+                                {errors.password && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.password[0]}</p>}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">
+                            <button
+                                type="button"
+                                onClick={closeModal}
+                                className="px-4 py-2 text-sm font-bold text-gray-500 uppercase hover:bg-gray-50 rounded transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded text-sm font-bold uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {processing && <Loader2 size={14} className="animate-spin" />}
+                                {processing ? 'Processing...' : (modalMode === 'create' ? 'Register User' : 'Save Changes')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
         </AuthenticatedLayout>
     );
 }
