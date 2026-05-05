@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2, Trash2 } from "lucide-react";
+import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2, Trash2, X } from "lucide-react";
 
 // Helper functions for shift schedules and flexi time
 const getScheduledTimes = (date, override = null) => {
@@ -215,18 +215,30 @@ export default function DTRRecords({
                                                                         <span className="font-semibold text-gray-900 w-5">{dayNum}</span>
                                                                         <div className="flex flex-col">
                                                                             <span className="text-xs text-gray-500 font-medium group-hover:text-green-700 transition-colors">{data.weekday}</span>
-                                                                            <button 
-                                                                                onClick={() => updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
-                                                                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border mt-0.5 transition-colors w-fit ${
-                                                                                    data.schedule_type === '10HR' 
-                                                                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                                                                                        : data.schedule_type === '8HR'
-                                                                                            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                                                                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                }`}
-                                                                            >
-                                                                                {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
-                                                                            </button>
+                                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                                                <button 
+                                                                                    onClick={() => updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
+                                                                                    title="Change Schedule"
+                                                                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors w-fit ${
+                                                                                        data.schedule_type === '10HR' 
+                                                                                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                                                                            : data.schedule_type === '8HR'
+                                                                                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                                                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                    }`}
+                                                                                >
+                                                                                    {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
+                                                                                </button>
+                                                                                {!data.travel_order && (
+                                                                                    <button 
+                                                                                        onClick={() => setEditingTO({ date, value: '' })}
+                                                                                        title="Set Travel Order"
+                                                                                        className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors"
+                                                                                    >
+                                                                                        TO
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </td>
@@ -242,28 +254,48 @@ export default function DTRRecords({
                                                                                     placeholder="Enter TO Number..."
                                                                                     value={editingTO.value}
                                                                                     onChange={(e) => setEditingTO({ ...editingTO, value: e.target.value })}
-                                                                                    onBlur={() => {
-                                                                                        updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value);
-                                                                                        setEditingTO(null);
-                                                                                    }}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value);
+                                                                                    onBlur={async () => {
+                                                                                        if (editingTO.value === data.travel_order) {
                                                                                             setEditingTO(null);
+                                                                                            return;
+                                                                                        }
+                                                                                        const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
+                                                                                        if (success) setEditingTO(null);
+                                                                                    }}
+                                                                                    onKeyDown={async (e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
+                                                                                            if (success) setEditingTO(null);
                                                                                         }
                                                                                         if (e.key === 'Escape') setEditingTO(null);
                                                                                     }}
-                                                                                    className="font-bold text-sm px-3 py-1 rounded border border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none w-48 text-center bg-white"
+                                                                                    className="font-bold text-sm px-3 py-1 rounded border border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none w-48 text-center bg-white shadow-sm"
                                                                                 />
+                                                                                <button 
+                                                                                    onClick={() => setEditingTO(null)}
+                                                                                    className="p-1 hover:bg-yellow-100 rounded text-yellow-700 transition-colors"
+                                                                                    title="Cancel"
+                                                                                >
+                                                                                    <X size={16} />
+                                                                                </button>
                                                                             </div>
                                                                         ) : (
-                                                                            <span 
-                                                                                onClick={() => setEditingTO({ date, value: data.travel_order })}
-                                                                                className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full text-xs font-bold border border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors uppercase tracking-wider"
-                                                                            >
-                                                                                <FileText size={14} />
-                                                                                Travel Order: {data.travel_order}
-                                                                            </span>
+                                                                            <div className="flex items-center justify-center gap-2">
+                                                                                <span 
+                                                                                    onClick={() => setEditingTO({ date, value: data.travel_order })}
+                                                                                    className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full text-xs font-bold border border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors uppercase tracking-wider"
+                                                                                >
+                                                                                    <FileText size={14} />
+                                                                                    Travel Order: {data.travel_order}
+                                                                                </span>
+                                                                                <button 
+                                                                                    onClick={() => updateTravelOrder(selectedEmployee, date, null)}
+                                                                                    className="p-1.5 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100"
+                                                                                    title="Remove Travel Order"
+                                                                                >
+                                                                                    <X size={14} />
+                                                                                </button>
+                                                                            </div>
                                                                         )}
                                                                     </td>
                                                                 ) : (

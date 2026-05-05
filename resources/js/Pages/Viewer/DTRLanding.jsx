@@ -155,13 +155,21 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         }
     };
 
-    const updateTravelOrder = async (employeeName, date, travel_order) => {
+    const updateTravelOrder = async (employeeName, date, travel_order, hasLogs = false) => {
+        if (travel_order && hasLogs) {
+            if (!confirm('This day has existing attendance records. Setting a Travel Order will DELETE them. Continue?')) {
+                return false;
+            }
+        }
+
         try {
             await axios.post('/update-travel-order', { employee: employeeName, date, travel_order });
             handleEmployeeSelect(employeeName);
+            return true;
         } catch (err) {
             console.error(err);
             alert('Failed to update travel order.');
+            return false;
         }
     };
 

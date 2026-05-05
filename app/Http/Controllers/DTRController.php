@@ -877,23 +877,37 @@ class DTRController extends Controller
             return response()->json(['error' => 'Employee not found'], 404);
         }
 
-        $record = DTRRecord::where('employee_name', $employeeName)
-            ->where('log_date', $date)
-            ->first();
-
-        if ($record) {
+        if ($toValue) {
+            // If setting a Travel Order, we delete all existing records for that day
+            // and create one single record with the travel order.
             DTRRecord::where('employee_name', $employeeName)
                 ->where('log_date', $date)
-                ->update(['travel_order' => $toValue]);
-        } else {
+                ->delete();
+
             DTRRecord::create([
                 'employee_id' => $employee->id,
                 'employee_name' => $employeeName,
                 'log_date' => $date,
-                'log_time' => '00:00',
+                'log_time' => '00:00', // Dummy time for placeholder
                 'travel_order' => $toValue,
                 'status' => $employee->status
             ]);
+        } else {
+            // If clearing a Travel Order:
+            // 1. If it's a dummy record (log_time 00:00), delete it.
+            // 2. If it's a real record, just clear the travel_order column.
+            $dummy = DTRRecord::where('employee_name', $employeeName)
+                ->where('log_date', $date)
+                ->where('log_time', '00:00')
+                ->first();
+
+            if ($dummy) {
+                $dummy->delete();
+            } else {
+                DTRRecord::where('employee_name', $employeeName)
+                    ->where('log_date', $date)
+                    ->update(['travel_order' => null]);
+            }
         }
 
         return response()->json(['success' => true]);
