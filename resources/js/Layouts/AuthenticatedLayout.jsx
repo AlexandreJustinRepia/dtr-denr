@@ -16,7 +16,8 @@ import {
     Search,
     ChevronLeft,
     Settings,
-    HelpCircle
+    HelpCircle,
+    Users
 } from 'lucide-react';
 
 export default function AuthenticatedLayout({ header, children }) {
@@ -28,6 +29,7 @@ export default function AuthenticatedLayout({ header, children }) {
     const navItems = [
         { label: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard, active: route().current('dashboard') },
         { label: 'Log Processor', href: route('dtr'), icon: FileText, active: route().current('dtr') },
+        { label: 'System Users', href: route('users.index'), icon: Users, active: route().current('users.index') },
     ];
 
     return (

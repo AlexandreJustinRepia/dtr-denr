@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DTRController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -41,6 +42,12 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::patch('/admin/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::delete('/admin/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
     Route::post('/admin/employees/merge', [EmployeeController::class, 'merge'])->name('employees.merge');
+
+    // User Management
+    Route::get('/admin/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/admin/users', [UserController::class, 'store'])->name('users.store');
+    Route::patch('/admin/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 });
 
 
