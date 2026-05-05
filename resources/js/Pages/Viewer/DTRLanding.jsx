@@ -1,6 +1,6 @@
 import { Head, router, Link } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
-import { Download, User, Users, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck } from 'lucide-react';
+import { Download, User, Users, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import Footer from '@/Components/Footer';
 import SearchFilters from './Components/SearchFilter';
 import EmployeeList from './Components/EmployeeList';
@@ -261,7 +261,14 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-start md:items-end gap-3">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-3 mt-4 md:mt-0">
+                        <Link 
+                            href={route('dashboard')}
+                            className="inline-flex items-center gap-2 bg-green-700 text-white px-4 py-2 rounded text-sm font-semibold shadow-sm hover:bg-green-600 border border-green-600 transition-colors"
+                        >
+                            <LayoutDashboard size={16} />
+                            System Dashboard
+                        </Link>
                         <Link 
                             href={route('employees.index')}
                             className="inline-flex items-center gap-2 bg-white text-green-800 px-4 py-2 rounded text-sm font-semibold shadow-sm hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors"
