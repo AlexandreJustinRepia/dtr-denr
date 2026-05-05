@@ -228,62 +228,53 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
             <Head title="Employee DTR Portal | PENRO Bulacan" />
 
             {/* Header Hero */}
-            <header className="bg-green-700 pt-12 pb-24 px-6 relative overflow-hidden text-white">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between relative z-10">
-                    <div className="flex items-center gap-6 mb-8 md:mb-0">
-                        <div className="bg-white p-4 rounded-3xl shadow-xl shadow-green-900/20">
-                            <Building2 className="w-10 h-10 text-green-700" />
+            <header className="bg-green-800 pt-8 pb-12 px-6 text-white border-b-4 border-green-600">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between">
+                    <div className="flex items-center gap-4 mb-6 md:mb-0">
+                        <div className="bg-white p-3 rounded shadow-sm">
+                            <Building2 className="w-8 h-8 text-green-800" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <ShieldCheck size={14} className="text-green-100" />
-                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">Official Portal</span>
+                                <ShieldCheck size={14} className="text-green-200" />
+                                <span className="text-xs font-semibold uppercase tracking-wider text-green-100">Department of Environment and Natural Resources</span>
                             </div>
-                            <h1 className="text-3xl md:text-5xl font-black tracking-tighter leading-none mb-1">PENRO Bulacan</h1>
-                            <p className="text-sm font-bold uppercase tracking-widest text-green-50 italic">Matrix DTR Access Point</p>
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">PENRO Bulacan</h1>
+                            <p className="text-sm font-medium text-green-50">Daily Time Record System</p>
                             
-                            <div className="flex gap-3 mt-6">
-                                <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-3">
-                                    <div className="w-2 h-2 bg-blue-400 rounded-full shadow-[0_0_10px_rgba(96,165,250,0.5)]"></div>
+                            <div className="flex gap-4 mt-4">
+                                <div className="bg-green-900/40 px-3 py-1.5 rounded flex items-center gap-2 border border-green-700/50">
+                                    <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
                                     <div>
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-100/70 leading-none mb-1">Permanent</p>
-                                        <p className="text-lg font-black leading-none">{stats?.permanent || 0}</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-100/80 leading-none mb-0.5">Permanent</p>
+                                        <p className="text-sm font-semibold leading-none">{stats?.permanent || 0}</p>
                                     </div>
                                 </div>
-                                <div className="bg-white/10 px-4 py-2 rounded-2xl backdrop-blur-md border border-white/20 flex items-center gap-3">
-                                    <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_10px_rgba(251,146,60,0.5)]"></div>
+                                <div className="bg-green-900/40 px-3 py-1.5 rounded flex items-center gap-2 border border-green-700/50">
+                                    <div className="w-2 h-2 bg-orange-300 rounded-full"></div>
                                     <div>
-                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-orange-100/70 leading-none mb-1">Job Order</p>
-                                        <p className="text-lg font-black leading-none">{stats?.jo || 0}</p>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-orange-100/80 leading-none mb-0.5">Job Order</p>
+                                        <p className="text-sm font-semibold leading-none">{stats?.jo || 0}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-center md:text-right flex flex-col items-center md:items-end gap-3">
+                    <div className="flex flex-col items-start md:items-end gap-3">
                         <Link 
                             href={route('employees.index')}
-                            className="inline-flex items-center gap-2 bg-white text-green-700 px-5 py-2.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-green-900/20 hover:bg-green-50 transition-all active:scale-95"
+                            className="inline-flex items-center gap-2 bg-white text-green-800 px-4 py-2 rounded text-sm font-semibold shadow-sm hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors"
                         >
-                            <Users size={14} />
+                            <Users size={16} />
                             Manage Personnel
                         </Link>
-                        
-                        <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/20">
-                            <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                            <span className="text-[11px] font-black uppercase tracking-widest text-white/90">Attendance Server Online</span>
-                        </div>
-                        <p className="text-white font-bold uppercase tracking-widest text-xs opacity-80">Daily Time Record Retrieval</p>
                     </div>
                 </div>
-
-                {/* Abstract Background Decor */}
-                <Zap className="absolute -right-20 -bottom-20 text-white/5" size={400} />
             </header>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto -mt-16 px-6 pb-20 relative z-20">
+            <main className="max-w-7xl mx-auto px-6 py-8 relative z-20">
                 <SearchFilters
                     search={search} setSearch={setSearch}
                     filterMonth={filterMonth} setFilterMonth={setFilterMonth}
@@ -296,8 +287,8 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                     downloadLoading={downloadLoading}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 mt-10">
-                    <div className="lg:col-span-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+                    <div className="lg:col-span-4 lg:border-r border-gray-200 lg:pr-6">
                         <EmployeeList
                             employeeList={employeeList}
                             selectedEmployee={selectedEmployee}

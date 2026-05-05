@@ -45,116 +45,114 @@ export default function DTRRecords({
 
     if (!selectedEmployee) {
         return (
-            <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-20 text-center animate-in fade-in zoom-in-95 duration-700">
-                <div className="w-24 h-24 bg-gray-50 rounded-[32px] flex items-center justify-center mx-auto mb-8 border border-gray-100">
-                    <User className="w-10 h-10 text-gray-200" />
+            <div className="bg-white rounded border border-gray-200 shadow-sm p-12 text-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-200">
+                    <User className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Matrix Hub</h3>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Select personnel to initialize retrieval</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Employee Records</h3>
+                <p className="text-sm text-gray-500">Select an employee to view their Daily Time Record</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
+        <div className="space-y-6">
             {/* Personnel Header Card */}
-            <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden group">
-                <div className="bg-gray-50 p-10 flex items-center justify-between relative overflow-hidden border-b border-gray-100">
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <p className="text-[11px] font-black text-gray-500 uppercase tracking-[0.3em]">Active Session</p>
+            <div className="bg-white rounded shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 p-6 md:p-8 flex items-center justify-between border-b border-gray-200">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">DTR Record</p>
                         </div>
-                        <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                             {selectedEmployee}
                         </h2>
                     </div>
-                    <div className="bg-white p-6 rounded-[28px] shadow-sm border border-gray-100 hidden sm:flex flex-col items-center group-hover:scale-110 transition-transform duration-500">
-                        <Clock size={24} className="text-green-700 mb-1" />
-                        <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest leading-none">Records</span>
+                    <div className="hidden sm:flex flex-col items-center bg-white p-3 rounded shadow-sm border border-gray-200">
+                        <Clock size={20} className="text-green-700 mb-1" />
+                        <span className="text-xs font-medium text-gray-600">Records</span>
                     </div>
-                    <FileText className="absolute -right-10 -bottom-10 text-green-900/5 rotate-12" size={240} />
                 </div>
 
-                <div className="p-10">
+                <div className="p-6">
                     {dtrLoading ? (
-                        <div className="flex flex-col items-center justify-center py-24 text-gray-500 bg-gray-50 rounded-[40px] border border-dashed border-gray-200">
-                            <Loader2 className="w-12 h-12 animate-spin text-green-700 mb-6" />
-                            <p className="text-xs font-black text-gray-500 uppercase tracking-[0.3em] animate-pulse">Synchronizing Matrix Data...</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-gray-500 bg-gray-50 rounded border border-dashed border-gray-200">
+                            <Loader2 className="w-8 h-8 animate-spin text-green-700 mb-4" />
+                            <p className="text-sm text-gray-500">Loading records...</p>
                         </div>
                     ) : records[selectedEmployee] && Object.keys(records[selectedEmployee]).length > 0 ? (
                         Object.entries(records[selectedEmployee]).map(([month, days]) => {
                             const monthKey = month;
                             return (
                                 <div key={month} className="mb-12 last:mb-0">
-                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-8">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-green-100 p-3 rounded-2xl">
-                                                <Calendar className="text-green-700 w-5 h-5" />
+                                    <div className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-green-100 p-2 rounded">
+                                                <Calendar className="text-green-800 w-5 h-5" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
+                                                <h3 className="text-lg font-bold text-gray-900">
                                                     {month}
                                                 </h3>
-                                                <p className="text-xs font-black text-gray-500 uppercase tracking-widest leading-none">Daily Attendance Summary</p>
+                                                <p className="text-sm text-gray-500 leading-none">Monthly Attendance</p>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+                                        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
                                             {/* PDF */}
                                             {downloadLoading[`${selectedEmployee}-${monthKey}`] ? (
-                                                <button disabled className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-green-500/50 text-white cursor-not-allowed">
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...
+                                                <button disabled className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium bg-green-600/50 text-white cursor-not-allowed">
+                                                    <Loader2 className="w-4 h-4 animate-spin" /> Fetching...
                                                 </button>
                                             ) : (
                                                 <button
                                                     onClick={() => handleDownload(selectedEmployee, monthKey)}
-                                                    className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-green-700 hover:bg-green-800 text-white shadow-lg shadow-green-700/20 active:scale-95"
+                                                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors bg-green-700 hover:bg-green-800 text-white"
                                                 >
-                                                    <Download className="w-3.5 h-3.5" /> PDF
+                                                    <Download className="w-4 h-4" /> PDF
                                                 </button>
                                             )}
 
                                             <button
                                                 onClick={() => handleDeleteMonth(selectedEmployee, monthKey)}
-                                                className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-red-50 text-red-600 hover:bg-red-100 active:scale-95 border border-red-100"
+                                                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors bg-white text-red-600 hover:bg-red-50 border border-red-200"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                                                <Trash2 className="w-4 h-4" /> Delete
                                             </button>
 
                                             {/* DOCX */}
                                             {downloadLoading[`${selectedEmployee}-${monthKey}-docx`] ? (
-                                                <button disabled className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest bg-blue-500/50 text-white cursor-not-allowed">
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Fetching...
+                                                <button disabled className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium bg-blue-500/50 text-white cursor-not-allowed">
+                                                    <Loader2 className="w-4 h-4 animate-spin" /> Fetching...
                                                 </button>
                                             ) : (
                                                 <button
                                                     onClick={() => handleDownloadDocx(selectedEmployee, monthKey)}
-                                                    className="flex-1 sm:flex-none inline-flex items-center gap-3 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 active:scale-95"
+                                                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
                                                 >
-                                                    <FileText className="w-3.5 h-3.5" /> DOCX
+                                                    <FileText className="w-4 h-4" /> DOCX
                                                 </button>
                                             )}
                                             
                                         </div>
                                     </div>
 
-                                    <div className="bg-gray-50 rounded-[40px] overflow-hidden border border-gray-100">
+                                    <div className="bg-white rounded border border-gray-200 overflow-hidden">
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-xs">
-                                                <thead className="bg-white border-b border-gray-100">
-                                                    <tr className="text-[11px] font-black text-gray-500 uppercase tracking-[0.3em]">
-                                                        <th className="px-8 py-6 text-left selection:bg-green-100">Day</th>
-                                                        <th className="px-5 py-6 font-bold">Check In</th>
-                                                        <th className="px-5 py-6 font-bold">Break Out</th>
-                                                        <th className="px-5 py-6 font-bold">Break In</th>
-                                                        <th className="px-5 py-6 font-bold">Check Out</th>
-                                                        <th className="px-5 py-6 font-bold">Late</th>
-                                                        <th className="px-5 py-6 font-bold">Undertime</th>
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-50 border-b border-gray-200">
+                                                    <tr className="text-xs font-semibold text-gray-600 uppercase">
+                                                        <th className="px-4 py-3 w-32">Day</th>
+                                                        <th className="px-4 py-3 text-center">Check In</th>
+                                                        <th className="px-4 py-3 text-center">Break Out</th>
+                                                        <th className="px-4 py-3 text-center">Break In</th>
+                                                        <th className="px-4 py-3 text-center">Check Out</th>
+                                                        <th className="px-4 py-3 text-center">Late</th>
+                                                        <th className="px-4 py-3 text-center">Undertime</th>
                                                     </tr>
                                                 </thead>
 
-                                                <tbody className="divide-y divide-white">
+                                                <tbody className="divide-y divide-gray-200">
                                                     {Object.entries(days).map(([date, data]) => {
                                                         const { inTime, breakOut, breakIn, outTime } = processLogs(data.logs);
                                                         const dayNum = new Date(date).getDate();
@@ -209,28 +207,28 @@ export default function DTRRecords({
                                                         }
 
                                                         return (
-                                                            <tr key={date} className="hover:bg-white transition-all duration-300 group/tr">
-                                                                <td className="px-8 py-5">
+                                                            <tr key={date} className="hover:bg-gray-50 transition-colors group">
+                                                                <td className="px-4 py-3">
                                                                     <div className="flex items-center gap-3">
-                                                                        <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center font-black text-gray-900 text-[11px] shadow-sm">{dayNum}</span>
+                                                                        <span className="font-semibold text-gray-900 w-5">{dayNum}</span>
                                                                         <div className="flex flex-col">
-                                                                            <span className="text-xs font-black text-gray-500 uppercase tracking-widest group-hover/tr:text-green-600 transition-colors">{data.weekday}</span>
+                                                                            <span className="text-xs text-gray-500 font-medium group-hover:text-green-700 transition-colors">{data.weekday}</span>
                                                                             <button 
                                                                                 onClick={() => updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
-                                                                                className={`text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded border transition-all ${
+                                                                                className={`text-[10px] font-medium px-1.5 py-0.5 rounded border mt-0.5 transition-colors w-fit ${
                                                                                     data.schedule_type === '10HR' 
-                                                                                        ? 'bg-green-50 text-green-700 border-green-100' 
+                                                                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
                                                                                         : data.schedule_type === '8HR'
-                                                                                            ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                                                                            : 'bg-gray-50 text-gray-400 border-gray-100 opacity-60 hover:opacity-100'
+                                                                                            ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                                                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                                                                                 }`}
                                                                             >
-                                                                                {data.schedule_type === '10HR' ? '10H Shift' : data.schedule_type === '8HR' ? '8H Shift' : 'Auto'}
+                                                                                {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
                                                                             </button>
                                                                         </div>
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center">
+                                                                <td className="px-4 py-3 text-center">
                                                                     {editing && editing.id === inTime?.id ? (
                                                                         <input
                                                                             autoFocus
@@ -248,17 +246,17 @@ export default function DTRRecords({
                                                                                 }
                                                                                 if (e.key === 'Escape') setEditing(null);
                                                                             }}
-                                                                            className="font-mono font-black text-xs px-2 py-1 rounded-lg border-2 border-green-500 outline-none w-24 text-center"
+                                                                            className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
                                                                         />
                                                                     ) : (
                                                                         <span 
                                                                             onClick={() => inTime && setEditing({ id: inTime.id, value: inTime.time })}
-                                                                            className={`font-mono font-black text-xs px-2 py-1 rounded-lg transition-all ${inTime ? 'text-green-700 bg-green-50 cursor-pointer hover:scale-110 active:scale-95' : 'text-gray-300'}`}>
+                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-400'}`}>
                                                                             {format12Hour(inTime) || '--:--'}
                                                                         </span>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center">
+                                                                <td className="px-4 py-3 text-center">
                                                                     {editing && editing.id === breakOut?.id ? (
                                                                         <input
                                                                             autoFocus
@@ -276,17 +274,17 @@ export default function DTRRecords({
                                                                                 }
                                                                                 if (e.key === 'Escape') setEditing(null);
                                                                             }}
-                                                                            className="font-mono font-black text-xs px-2 py-1 rounded-lg border-2 border-orange-500 outline-none w-24 text-center"
+                                                                            className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
                                                                         />
                                                                     ) : (
                                                                         <span 
                                                                             onClick={() => breakOut && setEditing({ id: breakOut.id, value: breakOut.time })}
-                                                                            className={`font-mono font-bold text-xs px-2 py-1 rounded-lg transition-all ${breakOut ? 'text-orange-700 bg-orange-50/50 cursor-pointer hover:scale-110 active:scale-95' : 'text-gray-300'}`}>
+                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${breakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
                                                                             {format12Hour(breakOut) || '--:--'}
                                                                         </span>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center">
+                                                                <td className="px-4 py-3 text-center">
                                                                     {editing && editing.id === breakIn?.id ? (
                                                                         <input
                                                                             autoFocus
@@ -304,17 +302,17 @@ export default function DTRRecords({
                                                                                 }
                                                                                 if (e.key === 'Escape') setEditing(null);
                                                                             }}
-                                                                            className="font-mono font-black text-xs px-2 py-1 rounded-lg border-2 border-orange-500 outline-none w-24 text-center"
+                                                                            className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
                                                                         />
                                                                     ) : (
                                                                         <span 
                                                                             onClick={() => breakIn && setEditing({ id: breakIn.id, value: breakIn.time })}
-                                                                            className={`font-mono font-bold text-xs px-2 py-1 rounded-lg transition-all ${breakIn ? 'text-orange-700 bg-orange-50/50 cursor-pointer hover:scale-110 active:scale-95' : 'text-gray-300'}`}>
+                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${breakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
                                                                             {format12Hour(breakIn) || '--:--'}
                                                                         </span>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center border-l border-white">
+                                                                <td className="px-4 py-3 text-center border-l border-gray-100">
                                                                     {editing && editing.id === outTime?.id ? (
                                                                         <input
                                                                             autoFocus
@@ -332,20 +330,20 @@ export default function DTRRecords({
                                                                                 }
                                                                                 if (e.key === 'Escape') setEditing(null);
                                                                             }}
-                                                                            className="font-mono font-black text-xs px-2 py-1 rounded-lg border-2 border-red-500 outline-none w-24 text-center"
+                                                                            className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
                                                                         />
                                                                     ) : (
                                                                         <span 
                                                                             onClick={() => outTime && setEditing({ id: outTime.id, value: outTime.time })}
-                                                                            className={`font-mono font-black text-xs px-2 py-1 rounded-lg transition-all ${outTime ? 'text-red-600 bg-red-50 cursor-pointer hover:scale-110 active:scale-95' : 'text-gray-300'}`}>
+                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : 'text-gray-400'}`}>
                                                                             {format12Hour(outTime) || '--:--'}
                                                                         </span>
                                                                     )}
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center">
+                                                                <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                                                                     {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
                                                                 </td>
-                                                                <td className="px-5 py-5 text-center">
+                                                                <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                                                                     {undertimeMinutes && undertimeMinutes > 0 ? formatMins(undertimeMinutes) : ''}
                                                                 </td>
                                                             </tr>
@@ -359,9 +357,9 @@ export default function DTRRecords({
                             );
                         })
                     ) : (
-                        <div className="text-center py-24 bg-gray-50 rounded-[40px] border border-dashed border-gray-200">
-                            <CheckCircle2 className="w-16 h-16 mx-auto mb-6 text-gray-200" />
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">No matrix logs found for the selected period.</p>
+                        <div className="text-center py-16 bg-gray-50 rounded border border-dashed border-gray-200">
+                            <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                            <p className="text-sm text-gray-500">No records found for this month.</p>
                         </div>
                     )}
                 </div>
