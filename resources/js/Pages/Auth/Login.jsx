@@ -32,7 +32,7 @@ export default function Login({ status, canResetPassword }) {
             </div>
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600 bg-green-50 p-3 rounded-lg border border-green-100">
+                <div className="mb-4 text-sm font-medium text-green-700 bg-green-50 p-3 rounded border border-green-200">
                     {status}
                 </div>
             )}
@@ -104,7 +104,7 @@ export default function Login({ status, canResetPassword }) {
 
                 <div className="pt-2">
                     <PrimaryButton
-                        className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 py-3 text-sm font-semibold transition-all shadow-md hover:shadow-lg disabled:opacity-75"
+                        className="w-full gap-2"
                         disabled={processing}
                     >
                         {processing ? 'Logging in...' : (
