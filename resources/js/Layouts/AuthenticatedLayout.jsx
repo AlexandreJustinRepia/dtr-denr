@@ -27,77 +27,77 @@ export default function AuthenticatedLayout({ header, children }) {
     // Sidebar navigation items
     const navItems = [
         { label: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard, active: route().current('dashboard') },
-        { label: 'Generate DTR', href: route('dtr'), icon: FileText, active: route().current('dtr') },
+        { label: 'Log Processor', href: route('dtr'), icon: FileText, active: route().current('dtr') },
     ];
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex">
+        <div className="min-h-screen bg-gray-50 flex">
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-100 transition-all duration-300 ease-in-out shadow-sm
+                className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transition-all duration-200 ease-in-out
                     ${isSidebarOpen ? 'w-64' : 'w-20'} 
                     ${showingNavigationDropdown ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
                 `}
             >
                 <div className="flex flex-col h-full">
                     {/* Sidebar Header */}
-                    <div className="h-20 flex items-center px-6 border-b border-gray-50">
+                    <div className="h-16 flex items-center px-6 border-b border-gray-200">
                         <Link href="/" className="flex items-center gap-3">
-                            <ApplicationLogo className="h-10 w-auto" />
+                            <ApplicationLogo className="h-8 w-auto" />
                             {isSidebarOpen && (
-                                <div className="transition-opacity duration-300">
-                                    <p className="text-sm font-black text-gray-900 uppercase leading-tight tracking-tighter">DENR</p>
-                                    <p className="text-[8px] font-bold text-green-600 uppercase tracking-widest">Bulacan</p>
+                                <div className="transition-opacity duration-200">
+                                    <p className="text-sm font-bold text-gray-900 uppercase leading-none mb-1">DENR</p>
+                                    <p className="text-[10px] font-semibold text-green-700 uppercase leading-none">PENRO Bulacan</p>
                                 </div>
                             )}
                         </Link>
                     </div>
 
                     {/* Navigation Items */}
-                    <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
                         {navItems.map((item) => (
                             <Link
                                 key={item.label}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all group
+                                className={`flex items-center gap-3 px-3 py-2 rounded text-sm font-medium transition-colors
                                     ${item.active
-                                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
-                                        : 'text-gray-500 hover:bg-green-50 hover:text-green-600'
+                                        ? 'bg-green-700 text-white shadow-sm'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                                     }
                                 `}
                             >
-                                <item.icon size={20} className={item.active ? 'text-white' : 'text-gray-400 group-hover:text-green-600'} />
-                                {isSidebarOpen && <span className="text-sm">{item.label}</span>}
+                                <item.icon size={18} className={item.active ? 'text-white' : 'text-gray-400'} />
+                                {isSidebarOpen && <span>{item.label}</span>}
                             </Link>
                         ))}
                     </nav>
 
                     {/* Sidebar Footer */}
-                    <div className="p-4 border-t border-gray-50">
+                    <div className="p-3 border-t border-gray-200">
                         {isSidebarOpen ? (
-                            <div className="bg-gray-50 rounded-2xl p-4">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Support</p>
-                                <div className="space-y-3">
-                                    <button className="flex items-center gap-2 text-xs font-bold text-gray-600 hover:text-green-600 transition-colors w-full">
+                            <div className="bg-gray-50 rounded border border-gray-200 p-3">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Administration</p>
+                                <div className="space-y-1">
+                                    <button className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-green-700 transition-colors w-full px-2 py-1.5 rounded hover:bg-white">
                                         <HelpCircle size={14} /> Help Center
                                     </button>
-                                    <button className="flex items-center gap-2 text-xs font-bold text-gray-600 hover:text-green-600 transition-colors w-full">
+                                    <button className="flex items-center gap-2 text-xs font-medium text-gray-600 hover:text-green-700 transition-colors w-full px-2 py-1.5 rounded hover:bg-white">
                                         <Settings size={14} /> Settings
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-4 py-2">
-                                <HelpCircle size={20} className="text-gray-400 cursor-pointer hover:text-green-600" />
-                                <Settings size={20} className="text-gray-400 cursor-pointer hover:text-green-600" />
+                                <HelpCircle size={18} className="text-gray-400 cursor-pointer hover:text-green-700" />
+                                <Settings size={18} className="text-gray-400 cursor-pointer hover:text-green-700" />
                             </div>
                         )}
 
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="mt-4 hidden lg:flex items-center justify-center w-full py-2 text-gray-400 hover:text-green-600 transition-colors"
+                            className="mt-3 hidden lg:flex items-center justify-center w-full py-1.5 text-gray-400 hover:text-green-700 transition-colors border border-transparent hover:border-gray-200 rounded"
                         >
-                            {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                            {isSidebarOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
                         </button>
                     </div>
                 </div>
@@ -106,70 +106,70 @@ export default function AuthenticatedLayout({ header, children }) {
             {/* Mobile Overlay */}
             {showingNavigationDropdown && (
                 <div
-                    className="fixed inset-0 z-40 bg-gray-900/20 backdrop-blur-sm lg:hidden"
+                    className="fixed inset-0 z-40 bg-gray-900/40 lg:hidden"
                     onClick={() => setShowingNavigationDropdown(false)}
                 ></div>
             )}
 
             {/* Main Content Area */}
-            <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+            <div className={`flex-1 flex flex-col transition-all duration-200 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
                 {/* Top Header */}
-                <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-30">
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setShowingNavigationDropdown(!showingNavigationDropdown)}
-                            className="lg:hidden p-2 text-gray-400 hover:text-green-600 transition-colors"
+                            className="lg:hidden p-2 text-gray-500 hover:text-green-700 transition-colors"
                         >
-                            <Menu size={24} />
+                            <Menu size={20} />
                         </button>
-                        <h2 className="text-lg font-black text-gray-800 uppercase tracking-tight">
+                        <h2 className="text-base font-bold text-gray-900 uppercase">
                             {header || 'Dashboard'}
                         </h2>
                     </div>
 
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
                         {/* Search Bar - Desktop */}
-                        <div className="hidden md:flex items-center bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 focus-within:ring-2 focus-within:ring-green-500/20 transition-all">
-                            <Search size={18} className="text-gray-400" />
+                        <div className="hidden md:flex items-center bg-gray-50 border border-gray-200 rounded px-3 py-1.5 focus-within:ring-2 focus-within:ring-green-500/10 focus-within:border-green-500 transition-all">
+                            <Search size={16} className="text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Quick Search..."
-                                className="bg-transparent border-none text-sm focus:ring-0 placeholder:text-gray-400 font-medium ml-2"
+                                placeholder="Search system..."
+                                className="bg-transparent border-none text-sm focus:ring-0 placeholder:text-gray-400 font-medium ml-2 w-48"
                             />
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <button className="relative p-2 text-gray-400 hover:text-green-600 transition-colors">
-                                <Bell size={20} />
-                                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                            <button className="relative p-2 text-gray-500 hover:text-green-700 transition-colors">
+                                <Bell size={18} />
+                                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-red-600 rounded-full border-2 border-white"></span>
                             </button>
 
-                            <div className="h-8 w-px bg-gray-100 hidden sm:block mx-1"></div>
+                            <div className="h-6 w-px bg-gray-200 hidden sm:block mx-1"></div>
 
                             <div className="relative">
                                 <Dropdown>
                                     <Dropdown.Trigger>
-                                        <button className="flex items-center gap-3 p-1 rounded-xl hover:bg-gray-50 transition-colors">
-                                            <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center text-green-700 font-black text-sm uppercase">
+                                        <button className="flex items-center gap-2 p-1 rounded hover:bg-gray-50 transition-colors">
+                                            <div className="w-8 h-8 bg-green-700 rounded flex items-center justify-center text-white font-bold text-xs">
                                                 {user.name.charAt(0)}
                                             </div>
                                             <div className="hidden sm:block text-left">
-                                                <p className="text-xs font-black text-gray-900 uppercase tracking-tighter leading-none mb-1">{user.name}</p>
-                                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none">Administrator</p>
+                                                <p className="text-xs font-bold text-gray-900 uppercase leading-none mb-0.5">{user.name}</p>
+                                                <p className="text-[10px] font-semibold text-gray-500 uppercase leading-none">Administrator</p>
                                             </div>
                                             <ChevronDown size={14} className="text-gray-400 ml-1" />
                                         </button>
                                     </Dropdown.Trigger>
 
                                     <Dropdown.Content width="48">
-                                        <div className="px-4 py-3 border-b border-gray-50">
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Signed in as</p>
-                                            <p className="text-sm font-bold text-gray-900 truncate">{user.email}</p>
+                                        <div className="px-4 py-2 border-b border-gray-100 bg-gray-50">
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase mb-0.5">Account</p>
+                                            <p className="text-xs font-semibold text-gray-900 truncate">{user.email}</p>
                                         </div>
-                                        <Dropdown.Link href={route('profile.edit')} className="flex items-center gap-2">
+                                        <Dropdown.Link href={route('profile.edit')} className="flex items-center gap-2 text-sm">
                                             <UserIcon size={14} /> Profile
                                         </Dropdown.Link>
-                                        <Dropdown.Link href={route('logout')} method="post" as="button" className="flex items-center gap-2 text-red-600">
+                                        <Dropdown.Link href={route('logout')} method="post" as="button" className="flex items-center gap-2 text-sm text-red-600">
                                             <LogOut size={14} /> Log Out
                                         </Dropdown.Link>
                                     </Dropdown.Content>
@@ -180,17 +180,18 @@ export default function AuthenticatedLayout({ header, children }) {
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 p-8">
+                <main className="flex-1 p-6">
                     {children}
                 </main>
 
                 {/* Footer */}
-                <footer className="px-8 py-6 border-t border-gray-50 text-center">
-                    <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.3em]">
-                        &copy; {new Date().getFullYear()} DENR PENRO Bulacan • DTR Management System
+                <footer className="px-6 py-4 border-t border-gray-200 bg-white text-center">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+                        &copy; {new Date().getFullYear()} DENR PENRO Bulacan • Daily Time Record System
                     </p>
                 </footer>
             </div>
         </div>
     );
 }
+

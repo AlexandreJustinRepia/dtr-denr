@@ -82,35 +82,32 @@ export default function DTRPage() {
 
   return (
     <AuthenticatedLayout header="Log Processor">
-      <div className="max-w-7xl mx-auto">
-
-        <div className="grid gap-10 lg:grid-cols-12">
+      <div className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-12">
           {/* ==== LEFT/MAIN: Input Section ==== */}
-          <section className="lg:col-span-8 space-y-8">
-            <div className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden">
-              <div className="bg-green-700 p-8 text-white relative overflow-hidden">
-                <div className="relative z-10 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tight mb-1">Upload New Logs</h2>
-                    <p className="text-green-200 text-xs font-bold uppercase tracking-widest opacity-80">System is ready for processing</p>
-                  </div>
-                  <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md">
-                    <Zap className="text-green-300" size={24} />
-                  </div>
+          <section className="lg:col-span-8 space-y-6">
+            <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900 uppercase">Process Biometric Logs</h2>
+                  <p className="text-[10px] font-medium text-gray-500 uppercase mt-0.5">Upload and parse raw attendance data</p>
                 </div>
-                {/* Abstract Decor */}
-                <Database className="absolute -right-10 -bottom-10 text-white/5" size={200} />
+                <div className="text-gray-400">
+                  <Database size={20} />
+                </div>
               </div>
 
-              <form onSubmit={generate} className="p-10 space-y-8">
+              <form onSubmit={generate} className="p-6 space-y-6">
                 {/* Batch Name Input */}
-                <div className="relative group">
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-3 ml-2">Batch Identification</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Batch Identification</label>
                   <div className="relative">
-                    <Hash className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-green-600 transition-colors" size={18} />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Hash className="text-gray-400" size={14} />
+                    </div>
                     <input
                       type="text"
-                      className="w-full pl-12 pr-6 py-5 bg-gray-50 border-none rounded-3xl text-sm font-bold text-gray-700 placeholder:text-gray-300 focus:ring-2 focus:ring-green-500/20 transition-all shadow-inner"
+                      className="w-full pl-9 pr-4 py-2 rounded border border-gray-300 text-sm focus:ring-2 focus:ring-green-500/10 focus:border-green-600 transition-colors"
                       placeholder="e.g., Biometric Batch - Mar 2025"
                       value={batchName}
                       onChange={e => setBatchName(e.target.value)}
@@ -120,13 +117,13 @@ export default function DTRPage() {
                 </div>
 
                 {/* Log Textarea */}
-                <div className="relative group">
-                  <div className="flex items-center justify-between mb-3 px-2">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Raw Attendance Data</label>
-                    <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg uppercase tracking-widest">Biometric Format</span>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-gray-700 uppercase">Raw Attendance Data</label>
+                    <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded uppercase">Standard Biometric Format</span>
                   </div>
                   <textarea
-                    className="w-full p-8 bg-gray-50 border-none rounded-[32px] font-mono text-xs text-gray-600 h-80 focus:ring-2 focus:ring-green-500/20 transition-all shadow-inner resize-none overflow-y-auto"
+                    className="w-full p-4 rounded border border-gray-300 font-mono text-xs text-gray-600 h-64 focus:ring-2 focus:ring-green-500/10 focus:border-green-600 transition-colors resize-none"
                     placeholder="Paste raw log data here (Name, Date, Time)..."
                     value={logText}
                     onChange={e => setLogText(e.target.value)}
@@ -134,51 +131,49 @@ export default function DTRPage() {
                   />
 
                   {alreadySaved && batchId && (
-                    <div className="absolute bottom-6 right-6 p-4 bg-white/80 backdrop-blur-md border border-amber-100 rounded-2xl flex items-center gap-3 text-amber-700 shadow-xl animate-in fade-in zoom-in-95 duration-300">
-                      <div className="bg-amber-100 p-2 rounded-xl text-amber-600">
-                        <Clock size={16} />
-                      </div>
-                      <span className="text-xs font-black uppercase tracking-tighter">
-                        Detected as <strong className="text-amber-900">Batch #{batchId}</strong>
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded flex items-center gap-3 text-amber-800 shadow-sm">
+                      <Clock size={16} className="text-amber-600" />
+                      <span className="text-xs font-medium uppercase">
+                        Duplicate detected: <strong className="font-bold">Batch #{batchId}</strong> already exists in the system.
                       </span>
                     </div>
                   )}
                 </div>
 
                 {/* Toggle for Strict Status */}
-                <div className="flex items-center gap-3 px-2 mb-2 mt-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded border border-gray-200">
                   <button
                     type="button"
                     onClick={() => setUseStrictStatus(!useStrictStatus)}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${useStrictStatus ? 'bg-green-500' : 'bg-gray-300'}`}
+                    className={`w-9 h-5 rounded-full transition-colors relative flex-shrink-0 ${useStrictStatus ? 'bg-green-600' : 'bg-gray-300'}`}
                   >
-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${useStrictStatus ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                    <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-transform ${useStrictStatus ? 'translate-x-5' : 'translate-x-1'}`}></div>
                   </button>
                   <div>
-                    <p className="text-xs font-bold text-gray-700">Strict Attendance Rules</p>
-                    <p className="text-[9px] text-gray-400">If enabled, applies rigid time checks and ignores blank statuses.</p>
+                    <p className="text-xs font-bold text-gray-800">Apply Strict Attendance Rules</p>
+                    <p className="text-[10px] text-gray-500">Enforces rigid time checks and ignores entries without proper status indicators.</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div className="flex items-center gap-2 text-gray-400">
-                    <AlertCircle size={16} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest italic leading-none">Ensure records are formatted correctly</span>
+                    <AlertCircle size={14} />
+                    <span className="text-[10px] font-medium uppercase">Review data format before processing</span>
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="group inline-flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white px-10 py-5 rounded-[24px] font-black text-sm uppercase tracking-widest transition-all hover:shadow-2xl hover:shadow-green-600/30 active:scale-95 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-6 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="animate-spin" size={20} />
-                        Parsing Data...
+                        <Loader2 className="animate-spin" size={14} />
+                        Processing...
                       </>
                     ) : (
                       <>
-                        <Zap size={20} />
-                        Generate Records
+                        <Upload size={14} />
+                        Parse Data
                       </>
                     )}
                   </button>
@@ -188,88 +183,74 @@ export default function DTRPage() {
 
             {/* ==== Results Visualization ==== */}
             {records && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
-                <div className="flex items-center justify-between px-6">
-                  <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-3">
-                    <CheckCircle2 className="text-green-600" size={24} />
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <h2 className="text-sm font-bold text-gray-800 uppercase flex items-center gap-2">
+                    <CheckCircle2 className="text-green-600" size={18} />
                     Parsed Results
                   </h2>
-                  <span className="text-[10px] font-black text-green-600 bg-green-50 px-3 py-1.5 rounded-full uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded uppercase">
                     {Object.keys(records).length} Employees Found
                   </span>
                 </div>
 
                 {Object.entries(records).map(([name, months]) => (
-                  <div key={name} className="bg-white rounded-[40px] shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl hover:shadow-green-900/5 transition-all duration-500">
-                    <div className="bg-gray-50 p-8 flex items-center justify-between relative overflow-hidden">
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-1">
-                          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                          <p className="text-[10px] font-black text-gray-400 capitalize tracking-widest">Personnel</p>
-                        </div>
-                        <h3 className="font-black text-2xl text-gray-800 flex items-center gap-3 lowercase first-letter:uppercase tracking-tight">
+                  <div key={name} className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-b border-gray-200">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-0.5">Personnel Name</p>
+                        <h3 className="font-bold text-lg text-gray-900 uppercase">
                           {name}
                         </h3>
                       </div>
-                      <div className="bg-white p-6 rounded-[24px] shadow-sm flex flex-col items-center">
-                        <Users size={20} className="text-green-600 mb-1" />
-                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Record</span>
+                      <div className="w-8 h-8 rounded bg-white border border-gray-200 flex items-center justify-center text-gray-400">
+                        <Users size={16} />
                       </div>
                     </div>
 
-                    <div className="p-8 space-y-8">
+                    <div className="p-4 space-y-4">
                       {Object.entries(months).map(([monthKey, days]) => (
-                        <div key={monthKey} className="bg-gray-50 flex flex-col rounded-[32px] overflow-hidden border border-gray-100/50">
-                          <header className="px-8 py-4 flex justify-between items-center bg-white border-b border-gray-50">
-                            <span className="font-black text-gray-700 text-xs uppercase tracking-widest">{monthKey}</span>
-                            <div className="flex gap-2">
-                              <span className="text-[9px] font-black text-white bg-green-600 px-3 py-1.5 rounded-full uppercase tracking-tighter">
-                                {Object.keys(days).length} Entries
-                              </span>
-                            </div>
+                        <div key={monthKey} className="border border-gray-200 rounded overflow-hidden">
+                          <header className="px-4 py-2 flex justify-between items-center bg-gray-50 border-b border-gray-200">
+                            <span className="font-bold text-gray-700 text-[10px] uppercase">{monthKey}</span>
+                            <span className="text-[9px] font-bold text-green-700 bg-white border border-green-200 px-2 py-0.5 rounded uppercase">
+                              {Object.keys(days).length} Entries
+                            </span>
                           </header>
                           <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                              <thead className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">
+                            <table className="w-full text-[11px]">
+                              <thead className="bg-gray-50 text-[10px] font-bold text-gray-500 uppercase border-b border-gray-200">
                                 <tr>
-                                  <th className="px-8 py-5 text-left font-medium">Date/Weekday</th>
-                                  <th className="px-5 py-5 text-center font-medium">In</th>
-                                  <th className="px-5 py-5 text-center font-medium">Break Out</th>
-                                  <th className="px-5 py-5 text-center font-medium">Break In</th>
-                                  <th className="px-5 py-5 text-center font-medium">Out</th>
+                                  <th className="px-4 py-2 text-left">Date/Weekday</th>
+                                  <th className="px-2 py-2 text-center">In</th>
+                                  <th className="px-2 py-2 text-center">B/Out</th>
+                                  <th className="px-2 py-2 text-center">B/In</th>
+                                  <th className="px-2 py-2 text-center">Out</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-white">
+                              <tbody className="divide-y divide-gray-100">
                                 {Object.entries(days).map(([date, row], idx) => (
-                                  <tr key={idx} className="hover:bg-white transition-colors group/tr">
-                                    <td className="px-8 py-4 font-bold text-gray-700">
-                                      {date} <span className="text-gray-400 font-medium text-[10px] ml-1">({row.weekday})</span>
+                                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-1.5 font-semibold text-gray-700 whitespace-nowrap">
+                                      {date} <span className="text-gray-400 font-medium text-[9px]">({row.weekday})</span>
                                     </td>
-                                    <td className="px-5 py-4 text-center">
-                                      <span className="font-mono font-black text-[10px] text-green-600">
-                                        {format12Hour(row.in)}
-                                      </span>
+                                    <td className="px-2 py-1.5 text-center font-mono font-bold text-green-700">
+                                      {format12Hour(row.in)}
                                     </td>
-                                    <td className="px-5 py-4 text-center">
-                                      <span className="font-mono font-bold text-[10px] text-orange-500/70">
-                                        {format12Hour(row.breakOut)}
-                                      </span>
+                                    <td className="px-2 py-1.5 text-center font-mono text-gray-500">
+                                      {format12Hour(row.breakOut)}
                                     </td>
-                                    <td className="px-5 py-4 text-center">
-                                      <span className="font-mono font-bold text-[10px] text-orange-500/70">
-                                        {format12Hour(row.breakIn)}
-                                      </span>
+                                    <td className="px-2 py-1.5 text-center font-mono text-gray-500">
+                                      {format12Hour(row.breakIn)}
                                     </td>
-                                    <td className="px-5 py-4 text-center border-l border-gray-100/50">
-                                      <span className="font-mono font-black text-[10px] text-red-500">
-                                        {format12Hour(row.out)}
-                                      </span>
+                                    <td className="px-2 py-1.5 text-center font-mono font-bold text-red-700 border-l border-gray-50">
+                                      {format12Hour(row.out)}
                                     </td>
                                   </tr>
                                 )).slice(0, 5)}
                                 {Object.keys(days).length > 5 && (
                                   <tr>
-                                    <td colSpan="5" className="px-8 py-5 text-center text-gray-400 italic bg-white/20 font-bold text-[10px] uppercase tracking-widest">
+                                    <td colSpan="5" className="px-4 py-2 text-center text-gray-400 italic bg-gray-50 text-[10px] uppercase">
                                       + {Object.keys(days).length - 5} More Days Hidden
                                     </td>
                                   </tr>
@@ -287,69 +268,66 @@ export default function DTRPage() {
           </section>
 
           {/* ==== RIGHT: History & Quick Insights ==== */}
-          <aside className="lg:col-span-4 space-y-10">
+          <aside className="lg:col-span-4 space-y-6">
             {/* Insights Card */}
-            <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm relative overflow-hidden group">
-              <p className="text-[10px] font-black text-green-600 uppercase tracking-[0.3em] mb-4">Actual Parsing Speed</p>
-              <div className="space-y-6 relative z-10">
+            <div className="bg-white rounded border border-gray-200 p-6 shadow-sm relative overflow-hidden">
+              <p className="text-[10px] font-bold text-gray-500 uppercase mb-4">Parsing Performance</p>
+              <div className="space-y-4">
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-3xl font-black text-gray-900 tracking-tighter">
+                    <p className="text-2xl font-bold text-gray-900">
                       {parsingStats ? `${(parsingStats.duration / 1000).toFixed(3)}s` : '0.000s'}
                     </p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Parse Duration</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Process Time</p>
                   </div>
                   {parsingStats && (
                     <div className="text-right">
-                      <p className="text-xl font-black text-green-700 tracking-tighter">
+                      <p className="text-lg font-bold text-green-700">
                         {Math.round(parsingStats.recordCount / (parsingStats.duration / 1000)).toLocaleString()}
                       </p>
-                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest italic">Records / Sec</p>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase">Records / Sec</p>
                     </div>
                   )}
                 </div>
-                <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-green-500 transition-all duration-1000 ease-out"
+                    className="h-full bg-green-600"
                     style={{ width: parsingStats ? '100%' : '0%' }}
                   ></div>
                 </div>
-                <p className="text-[11px] font-medium text-gray-500 leading-relaxed">
+                <p className="text-[10px] text-gray-500 leading-relaxed">
                   {parsingStats
-                    ? `Processed ${parsingStats.recordCount.toLocaleString()} attendance records in ${parsingStats.duration}ms with ultra-low latency.`
-                    : 'The parser is optimized to handle thousands of records in milliseconds. High efficiency is maintained.'}
+                    ? `Processed ${parsingStats.recordCount.toLocaleString()} records in ${parsingStats.duration}ms.`
+                    : 'System optimized for high-volume biometric data parsing.'}
                 </p>
               </div>
-              <Zap className="absolute -right-2 -bottom-2 text-green-50/50 group-hover:scale-110 transition-transform duration-700" size={100} />
             </div>
 
             {/* History Feed */}
-            <div className="bg-white rounded-[40px] p-8 border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="font-black text-sm text-gray-800 uppercase tracking-widest flex items-center gap-2">
-                  <History size={16} className="text-green-600" />
-                  Recent Cycles
+            <div className="bg-white rounded border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold text-xs text-gray-800 uppercase flex items-center gap-2">
+                  <History size={14} className="text-gray-400" />
+                  Recent Batch Uploads
                 </h3>
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               </div>
-
               <DTRHistory onReprocess={reprocess} refreshSignal={refreshSignal} />
             </div>
 
             {/* Legend Card */}
-            <div className="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl shadow-gray-900/20">
-              <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.3em] mb-6">Status Legend</p>
-              <div className="space-y-4">
+            <div className="bg-gray-800 rounded p-6 text-white shadow-sm border border-gray-700">
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-4">Color Legend</p>
+              <div className="space-y-3">
                 {[
-                  { label: 'Standard In', color: 'bg-green-500', desc: 'Auto-parsed valid entry' },
-                  { label: 'Standard Out', color: 'bg-red-500', desc: 'Auto-parsed valid exit' },
-                  { label: 'Unverified', color: 'bg-amber-500', desc: 'Manual review suggested' },
+                  { label: 'Time In', color: 'bg-green-500', desc: 'Validated morning entry' },
+                  { label: 'Time Out', color: 'bg-red-500', desc: 'Validated evening exit' },
+                  { label: 'Break Times', color: 'bg-gray-400', desc: 'Noontime biometric logs' },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${item.color}`}></div>
+                  <div key={i} className="flex items-start gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full mt-0.5 ${item.color}`}></div>
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-tight">{item.label}</p>
-                      <p className="text-[8px] font-bold text-white/30 lowercase">{item.desc}</p>
+                      <p className="text-[10px] font-bold uppercase leading-none">{item.label}</p>
+                      <p className="text-[9px] text-gray-400 mt-1">{item.desc}</p>
                     </div>
                   </div>
                 ))}
