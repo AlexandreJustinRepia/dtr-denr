@@ -505,13 +505,17 @@ class DTRController extends Controller
             ->orderBy('month')
             ->get();
 
-        // Auto-select latest month/year if not provided
+        // Auto-select latest month/year if not provided (capped at current date to avoid future test data)
         if (!$monthFilter || !$yearFilter) {
-            if ($availableDates->isNotEmpty()) {
-                $latest = $availableDates->sortByDesc(fn($d) => $d->year . str_pad($d->month, 2, '0', STR_PAD_LEFT))->first();
-                $monthFilter = $monthFilter ?: $latest->month;
-                $yearFilter = $yearFilter ?: $latest->year;
+            $latestAvailable = $availableDates->filter(function($d) {
+                return Carbon::create($d->year, $d->month, 1)->isPast() || Carbon::create($d->year, $d->month, 1)->isCurrentMonth();
+            })->sortByDesc(fn($d) => $d->year . str_pad($d->month, 2, '0', STR_PAD_LEFT))->first();
+
+            if ($latestAvailable) {
+                $monthFilter = $monthFilter ?: $latestAvailable->month;
+                $yearFilter = $yearFilter ?: $latestAvailable->year;
             } else {
+                // Fallback to current month if no past/current data exists
                 $monthFilter = $monthFilter ?: date('n');
                 $yearFilter = $yearFilter ?: date('Y');
             }
