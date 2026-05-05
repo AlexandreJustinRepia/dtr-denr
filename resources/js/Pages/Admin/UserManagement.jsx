@@ -16,14 +16,17 @@ import {
     ChevronLeft,
     ChevronRight,
     Loader2,
-    CheckCircle2
+    CheckCircle2,
+    AlertTriangle
 } from 'lucide-react';
 
 export default function UserManagement({ users, filters }) {
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
     const [editingId, setEditingId] = useState(null);
+    const [userToDelete, setUserToDelete] = useState(null);
     
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState({});
@@ -66,9 +69,19 @@ export default function UserManagement({ users, filters }) {
         setIsModalOpen(true);
     };
 
+    const openDeleteModal = (user) => {
+        setUserToDelete(user);
+        setIsDeleteModalOpen(true);
+    };
+
     const closeModal = () => {
         setIsModalOpen(false);
         setErrors({});
+    };
+
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setUserToDelete(null);
     };
 
     const showSuccess = (message) => {
@@ -115,17 +128,26 @@ export default function UserManagement({ users, filters }) {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!confirm('Are you sure you want to remove this user? This will revoke their system access.')) return;
+    const handleDelete = async () => {
+        if (!userToDelete) return;
         
         setProcessing(true);
         try {
-            await axios.delete(route('users.destroy', id));
-            showSuccess('User removed successfully');
-            router.reload({ only: ['users'] });
+            const response = await axios.delete(route('users.destroy', userToDelete.id));
+            if (response.data.error) {
+                alert(response.data.error);
+            } else {
+                showSuccess('User removed successfully');
+                router.reload({ only: ['users'] });
+            }
+            closeDeleteModal();
         } catch (error) {
-            console.error(error);
-            alert('Failed to delete user.');
+            if (error.response?.data?.error) {
+                alert(error.response.data.error);
+            } else {
+                console.error(error);
+                alert('Failed to delete user.');
+            }
         } finally {
             setProcessing(false);
         }
@@ -215,7 +237,7 @@ export default function UserManagement({ users, filters }) {
                                                         <Edit2 size={16} />
                                                     </button>
                                                     <button 
-                                                        onClick={() => handleDelete(user.id)}
+                                                        onClick={() => openDeleteModal(user)}
                                                         className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors border border-transparent hover:border-red-200"
                                                         title="Delete User"
                                                     >
@@ -388,6 +410,44 @@ export default function UserManagement({ users, filters }) {
                             </button>
                         </div>
                     </form>
+                </div>
+            </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <Modal show={isDeleteModalOpen} onClose={closeDeleteModal} maxWidth="md">
+                <div className="bg-white p-6">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 uppercase">Confirm Deletion</h3>
+                            <p className="text-sm text-gray-500">This action cannot be undone.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 mb-6">
+                        <p className="text-sm text-gray-700 font-medium">Are you sure you want to remove <span className="text-red-600 font-bold">{userToDelete?.name}</span> from the system?</p>
+                        <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">Email: {userToDelete?.email}</p>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={closeDeleteModal}
+                            className="px-4 py-2 text-xs font-bold text-gray-500 uppercase hover:bg-gray-100 rounded transition-colors"
+                        >
+                            No, Keep User
+                        </button>
+                        <button
+                            onClick={handleDelete}
+                            disabled={processing}
+                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                        >
+                            {processing && <Loader2 size={12} className="animate-spin" />}
+                            {processing ? 'Removing...' : 'Yes, Delete Account'}
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </AuthenticatedLayout>
