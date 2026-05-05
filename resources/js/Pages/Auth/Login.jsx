@@ -37,6 +37,19 @@ export default function Login({ status, canResetPassword }) {
                 </div>
             )}
 
+            {errors.email && errors.email.includes('seconds') && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded flex items-start gap-3">
+                    <div className="text-red-600 mt-0.5">
+                        <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-red-800 uppercase tracking-wide">Account Locked Temporarily</h3>
+                        <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+                        <p className="text-xs text-red-500 mt-2 font-medium">This is a security measure to prevent brute-force attacks.</p>
+                    </div>
+                </div>
+            )}
+
             <form onSubmit={submit} className="space-y-4">
                 <div>
                     <InputLabel htmlFor="email" value="Email Address" className="flex items-center gap-2">
@@ -48,14 +61,17 @@ export default function Login({ status, canResetPassword }) {
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 shadow-sm"
+                        className="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 shadow-sm disabled:bg-gray-100 disabled:text-gray-500"
                         autoComplete="username"
                         isFocused={true}
                         placeholder="your@email.com"
                         onChange={(e) => setData('email', e.target.value)}
+                        disabled={errors.email?.includes('seconds')}
                     />
 
-                    <InputError message={errors.email} className="mt-2" />
+                    {(!errors.email || !errors.email.includes('seconds')) && (
+                        <InputError message={errors.email} className="mt-2" />
+                    )}
                 </div>
 
                 <div>
@@ -68,10 +84,11 @@ export default function Login({ status, canResetPassword }) {
                         type="password"
                         name="password"
                         value={data.password}
-                        className="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 shadow-sm"
+                        className="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 shadow-sm disabled:bg-gray-100 disabled:text-gray-500"
                         autoComplete="current-password"
                         placeholder="••••••••"
                         onChange={(e) => setData('password', e.target.value)}
+                        disabled={errors.email?.includes('seconds')}
                     />
 
                     <InputError message={errors.password} className="mt-2" />
@@ -105,12 +122,12 @@ export default function Login({ status, canResetPassword }) {
                 <div className="pt-2">
                     <PrimaryButton
                         className="w-full gap-2"
-                        disabled={processing}
+                        disabled={processing || errors.email?.includes('seconds')}
                     >
                         {processing ? 'Logging in...' : (
                             <>
                                 <LogIn className="w-4 h-4" />
-                                Sign In
+                                {errors.email?.includes('seconds') ? 'Locked' : 'Sign In'}
                             </>
                         )}
                     </PrimaryButton>
