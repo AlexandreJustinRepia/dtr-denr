@@ -155,6 +155,16 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         }
     };
 
+    const updateTravelOrder = async (employeeName, date, travel_order) => {
+        try {
+            await axios.post('/update-travel-order', { employee: employeeName, date, travel_order });
+            handleEmployeeSelect(employeeName);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to update travel order.');
+        }
+    };
+
     const processLogs = (logs) => {
         if (!logs || logs.length === 0) return { inTime: null, breakOut: null, breakIn: null, outTime: null };
         const sortedLogs = [...logs].sort((a, b) => a.time.localeCompare(b.time));
@@ -320,6 +330,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             handleDownloadDocx={handleDownloadDocx}
                             updateSchedule={updateSchedule}
                             updateLogTime={updateLogTime}
+                            updateTravelOrder={updateTravelOrder}
                             processLogs={processLogs}
                             format12Hour={format12Hour}
                             handleDeleteMonth={handleDeleteMonth}

@@ -566,7 +566,8 @@ class DTRController extends Controller
                         $structured[$dateStr] = [
                             'weekday' => $weekday,
                             'logs' => $dayLogs,
-                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type
+                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                            'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
                         ];
                     }
 
@@ -655,34 +656,39 @@ class DTRController extends Controller
             $weekday = $date->format('D');
             $logs = $records[$dateStr] ?? collect();
 
-            // Handle per-day schedule toggle
+            // Handle per-day schedule toggle and Travel Order
             $daySchedule = $logs->first()?->schedule_type;
+            $travelOrder = $logs->whereNotNull('travel_order')->first()?->travel_order;
 
             $checkIn = $breakOut = $breakIn = $checkOut = '';
 
-            foreach ($logs as $log) {
-                $timeObj = Carbon::parse($log->log_time);
-                $hour = (int) $timeObj->format('H');
-                $time12 = $timeObj->format('g:i');
+            if ($travelOrder) {
+                $checkIn = "TO: " . $travelOrder;
+            } else {
+                foreach ($logs as $log) {
+                    $timeObj = Carbon::parse($log->log_time);
+                    $hour = (int) $timeObj->format('H');
+                    $time12 = $timeObj->format('g:i');
 
-                if ($hour >= 5 && $hour <= 11) {
-                    if (empty($checkIn))
-                        $checkIn = $time12;
-                } elseif ($hour == 12) {
-                    if (empty($breakOut)) {
-                        $breakOut = $time12;
-                    } else {
-                        $breakIn = $time12;
+                    if ($hour >= 5 && $hour <= 11) {
+                        if (empty($checkIn))
+                            $checkIn = $time12;
+                    } elseif ($hour == 12) {
+                        if (empty($breakOut)) {
+                            $breakOut = $time12;
+                        } else {
+                            $breakIn = $time12;
+                        }
+                    } elseif ($hour >= 13 && $hour <= 21) {
+                        $checkOut = $time12;
                     }
-                } elseif ($hour >= 13 && $hour <= 21) {
-                    $checkOut = $time12;
                 }
             }
 
             $lateMinutes = null;
             $undertimeMinutes = null;
 
-            if ($checkIn && $checkOut) {
+            if (!$travelOrder && $checkIn && $checkOut) {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
@@ -760,20 +766,34 @@ class DTRController extends Controller
             // First table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
             $templateProcessor->setValue("d1#{$day}", $weekday);
-            $templateProcessor->setValue("in1#{$day}", $checkIn);
-            $templateProcessor->setValue("bout1#{$day}", $breakOut);
-            $templateProcessor->setValue("bin1#{$day}", $breakIn);
-            $templateProcessor->setValue("out1#{$day}", $checkOut);
+            if ($travelOrder) {
+                $templateProcessor->setValue("in1#{$day}", "MERGE_ROW_1_{$day}_TO_{$travelOrder}");
+                $templateProcessor->setValue("bout1#{$day}", "");
+                $templateProcessor->setValue("bin1#{$day}", "");
+                $templateProcessor->setValue("out1#{$day}", "");
+            } else {
+                $templateProcessor->setValue("in1#{$day}", $checkIn);
+                $templateProcessor->setValue("bout1#{$day}", $breakOut);
+                $templateProcessor->setValue("bin1#{$day}", $breakIn);
+                $templateProcessor->setValue("out1#{$day}", $checkOut);
+            }
             $templateProcessor->setValue("late1#{$day}", $lateStr);
             $templateProcessor->setValue("under1#{$day}", $underStr);
 
             // Second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
             $templateProcessor->setValue("d2#{$day}", $weekday);
-            $templateProcessor->setValue("in2#{$day}", $checkIn);
-            $templateProcessor->setValue("bout2#{$day}", $breakOut);
-            $templateProcessor->setValue("bin2#{$day}", $breakIn);
-            $templateProcessor->setValue("out2#{$day}", $checkOut);
+            if ($travelOrder) {
+                $templateProcessor->setValue("in2#{$day}", "MERGE_ROW_2_{$day}_TO_{$travelOrder}");
+                $templateProcessor->setValue("bout2#{$day}", "");
+                $templateProcessor->setValue("bin2#{$day}", "");
+                $templateProcessor->setValue("out2#{$day}", "");
+            } else {
+                $templateProcessor->setValue("in2#{$day}", $checkIn);
+                $templateProcessor->setValue("bout2#{$day}", $breakOut);
+                $templateProcessor->setValue("bin2#{$day}", $breakIn);
+                $templateProcessor->setValue("out2#{$day}", $checkOut);
+            }
             $templateProcessor->setValue("late2#{$day}", $lateStr);
             $templateProcessor->setValue("under2#{$day}", $underStr);
         }
@@ -787,7 +807,47 @@ class DTRController extends Controller
         $outputPath = $outputDir . DIRECTORY_SEPARATOR . $fileName;
         $templateProcessor->saveAs($outputPath);
 
+        // Perform raw XML manipulation to merge cells for Travel Orders
+        $this->applyWordCellMerge($outputPath);
+
         return $outputPath;
+    }
+
+    private function applyWordCellMerge($path)
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($path) === TRUE) {
+            $xml = $zip->getFromName('word/document.xml');
+
+            // Find rows with our markers and merge the 4 cells
+            // The marker is inside the first <w:tc> of the group.
+            // We replace that <w:tc> and the next 3 <w:tc> siblings.
+            $xml = preg_replace_callback('/<w:tc[^>]*>(?:(?!<\/w:tc>).)*MERGE_ROW_(\d+)_(\d+)_TO_([^<]+).*?<\/w:tc>(?:\s*<w:tc[^>]*>(?:(?!<\/w:tc>).)*<\/w:tc>){3}/s', function ($matches) {
+                $toValue = $matches[3];
+                return '<w:tc>
+                    <w:tcPr>
+                        <w:gridSpan w:val="4"/>
+                        <w:vAlign w:val="center"/>
+                    </w:tcPr>
+                    <w:p>
+                        <w:pPr>
+                            <w:jc w:val="center"/>
+                        </w:pPr>
+                        <w:r>
+                            <w:rPr>
+                                <w:b/>
+                                <w:sz w:val="18"/>
+                                <w:szCs w:val="18"/>
+                            </w:rPr>
+                            <w:t>TO: ' . htmlspecialchars($toValue) . '</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>';
+            }, $xml);
+
+            $zip->addFromString('word/document.xml', $xml);
+            $zip->close();
+        }
     }
 
 
@@ -803,6 +863,40 @@ class DTRController extends Controller
             ->update(['schedule_type' => $type]);
 
         return response()->json(['status' => 'success']);
+    }
+
+    public function updateTravelOrder()
+    {
+        $employeeName = request('employee');
+        $date = request('date');
+        $toValue = request('travel_order'); // string or null
+
+        $employee = $this->findExistingEmployee($employeeName);
+        
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        $record = DTRRecord::where('employee_name', $employeeName)
+            ->where('log_date', $date)
+            ->first();
+
+        if ($record) {
+            DTRRecord::where('employee_name', $employeeName)
+                ->where('log_date', $date)
+                ->update(['travel_order' => $toValue]);
+        } else {
+            DTRRecord::create([
+                'employee_id' => $employee->id,
+                'employee_name' => $employeeName,
+                'log_date' => $date,
+                'log_time' => '00:00',
+                'travel_order' => $toValue,
+                'status' => $employee->status
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     private function getSofficePath()
@@ -991,7 +1085,8 @@ class DTRController extends Controller
                 $structured[$dateStr] = [
                     'weekday' => $weekday,
                     'logs' => $dayLogs,
-                    'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type
+                    'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                    'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
                 ];
             }
 

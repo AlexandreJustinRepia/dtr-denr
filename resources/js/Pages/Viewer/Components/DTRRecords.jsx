@@ -39,9 +39,11 @@ export default function DTRRecords({
     updateLogTime,
     processLogs,
     format12Hour,
-    handleDeleteMonth
+    handleDeleteMonth,
+    updateTravelOrder
 }) {
     const [editing, setEditing] = useState(null); // { id, value, type, date }
+    const [editingTO, setEditingTO] = useState(null); // { date, value }
 
     if (!selectedEmployee) {
         return (
@@ -228,118 +230,161 @@ export default function DTRRecords({
                                                                         </div>
                                                                     </div>
                                                                 </td>
-                                                                <td className="px-4 py-3 text-center">
-                                                                    {editing && editing.id === inTime?.id ? (
-                                                                        <input
-                                                                            autoFocus
-                                                                            type="time"
-                                                                            value={editing.value}
-                                                                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                            onBlur={() => {
-                                                                                updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                setEditing(null);
-                                                                            }}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                    setEditing(null);
-                                                                                }
-                                                                                if (e.key === 'Escape') setEditing(null);
-                                                                            }}
-                                                                            className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
-                                                                        />
-                                                                    ) : (
-                                                                        <span 
-                                                                            onClick={() => inTime && setEditing({ id: inTime.id, value: inTime.time })}
-                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-400'}`}>
-                                                                            {format12Hour(inTime) || '--:--'}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center">
-                                                                    {editing && editing.id === breakOut?.id ? (
-                                                                        <input
-                                                                            autoFocus
-                                                                            type="time"
-                                                                            value={editing.value}
-                                                                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                            onBlur={() => {
-                                                                                updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                setEditing(null);
-                                                                            }}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                    setEditing(null);
-                                                                                }
-                                                                                if (e.key === 'Escape') setEditing(null);
-                                                                            }}
-                                                                            className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
-                                                                        />
-                                                                    ) : (
-                                                                        <span 
-                                                                            onClick={() => breakOut && setEditing({ id: breakOut.id, value: breakOut.time })}
-                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${breakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
-                                                                            {format12Hour(breakOut) || '--:--'}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center">
-                                                                    {editing && editing.id === breakIn?.id ? (
-                                                                        <input
-                                                                            autoFocus
-                                                                            type="time"
-                                                                            value={editing.value}
-                                                                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                            onBlur={() => {
-                                                                                updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                setEditing(null);
-                                                                            }}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                    setEditing(null);
-                                                                                }
-                                                                                if (e.key === 'Escape') setEditing(null);
-                                                                            }}
-                                                                            className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
-                                                                        />
-                                                                    ) : (
-                                                                        <span 
-                                                                            onClick={() => breakIn && setEditing({ id: breakIn.id, value: breakIn.time })}
-                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${breakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
-                                                                            {format12Hour(breakIn) || '--:--'}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center border-l border-gray-100">
-                                                                    {editing && editing.id === outTime?.id ? (
-                                                                        <input
-                                                                            autoFocus
-                                                                            type="time"
-                                                                            value={editing.value}
-                                                                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                            onBlur={() => {
-                                                                                updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                setEditing(null);
-                                                                            }}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter') {
-                                                                                    updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                    setEditing(null);
-                                                                                }
-                                                                                if (e.key === 'Escape') setEditing(null);
-                                                                            }}
-                                                                            className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
-                                                                        />
-                                                                    ) : (
-                                                                        <span 
-                                                                            onClick={() => outTime && setEditing({ id: outTime.id, value: outTime.time })}
-                                                                            className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : 'text-gray-400'}`}>
-                                                                            {format12Hour(outTime) || '--:--'}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
+
+                                                                {data.travel_order || (editingTO && editingTO.date === date) ? (
+                                                                    <td colSpan="4" className="px-4 py-3 text-center bg-yellow-50/30">
+                                                                        {editingTO && editingTO.date === date ? (
+                                                                            <div className="flex items-center justify-center gap-2">
+                                                                                <span className="text-xs font-bold text-yellow-700">TO:</span>
+                                                                                <input
+                                                                                    autoFocus
+                                                                                    type="text"
+                                                                                    placeholder="Enter TO Number..."
+                                                                                    value={editingTO.value}
+                                                                                    onChange={(e) => setEditingTO({ ...editingTO, value: e.target.value })}
+                                                                                    onBlur={() => {
+                                                                                        updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value);
+                                                                                        setEditingTO(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value);
+                                                                                            setEditingTO(null);
+                                                                                        }
+                                                                                        if (e.key === 'Escape') setEditingTO(null);
+                                                                                    }}
+                                                                                    className="font-bold text-sm px-3 py-1 rounded border border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none w-48 text-center bg-white"
+                                                                                />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span 
+                                                                                onClick={() => setEditingTO({ date, value: data.travel_order })}
+                                                                                className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full text-xs font-bold border border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors uppercase tracking-wider"
+                                                                            >
+                                                                                <FileText size={14} />
+                                                                                Travel Order: {data.travel_order}
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                ) : (
+                                                                    <>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            {editing && editing.id === inTime?.id ? (
+                                                                                <input
+                                                                                    autoFocus
+                                                                                    type="time"
+                                                                                    value={editing.value}
+                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                    onBlur={() => {
+                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                        setEditing(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                            setEditing(null);
+                                                                                        }
+                                                                                        if (e.key === 'Escape') setEditing(null);
+                                                                                    }}
+                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
+                                                                                />
+                                                                            ) : (
+                                                                                <span 
+                                                                                    onClick={() => {
+                                                                                        if (inTime) setEditing({ id: inTime.id, value: inTime.time });
+                                                                                        else setEditingTO({ date, value: '' });
+                                                                                    }}
+                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-300 hover:text-gray-500'}`}>
+                                                                                    {format12Hour(inTime) || '--:--'}
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            {editing && editing.id === breakOut?.id ? (
+                                                                                <input
+                                                                                    autoFocus
+                                                                                    type="time"
+                                                                                    value={editing.value}
+                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                    onBlur={() => {
+                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                        setEditing(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                            setEditing(null);
+                                                                                        }
+                                                                                        if (e.key === 'Escape') setEditing(null);
+                                                                                    }}
+                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                />
+                                                                            ) : (
+                                                                                <span 
+                                                                                    onClick={() => breakOut && setEditing({ id: breakOut.id, value: breakOut.time })}
+                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${breakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                    {format12Hour(breakOut) || '--:--'}
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center">
+                                                                            {editing && editing.id === breakIn?.id ? (
+                                                                                <input
+                                                                                    autoFocus
+                                                                                    type="time"
+                                                                                    value={editing.value}
+                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                    onBlur={() => {
+                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                        setEditing(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                            setEditing(null);
+                                                                                        }
+                                                                                        if (e.key === 'Escape') setEditing(null);
+                                                                                    }}
+                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                />
+                                                                            ) : (
+                                                                                <span 
+                                                                                    onClick={() => breakIn && setEditing({ id: breakIn.id, value: breakIn.time })}
+                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${breakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                    {format12Hour(breakIn) || '--:--'}
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                        <td className="px-4 py-3 text-center border-l border-gray-100">
+                                                                            {editing && editing.id === outTime?.id ? (
+                                                                                <input
+                                                                                    autoFocus
+                                                                                    type="time"
+                                                                                    value={editing.value}
+                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                    onBlur={() => {
+                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                        setEditing(null);
+                                                                                    }}
+                                                                                    onKeyDown={(e) => {
+                                                                                        if (e.key === 'Enter') {
+                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                            setEditing(null);
+                                                                                        }
+                                                                                        if (e.key === 'Escape') setEditing(null);
+                                                                                    }}
+                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
+                                                                                />
+                                                                            ) : (
+                                                                                <span 
+                                                                                    onClick={() => outTime && setEditing({ id: outTime.id, value: outTime.time })}
+                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                    {format12Hour(outTime) || '--:--'}
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                    </>
+                                                                )}
                                                                 <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                                                                     {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
                                                                 </td>

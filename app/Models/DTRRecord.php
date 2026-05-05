@@ -19,7 +19,8 @@ class DTRRecord extends Model
         'log_time',
         'log_type',
         'status',
-        'schedule_type'
+        'schedule_type',
+        'travel_order'
     ];
 
     public function batch()
