@@ -1,6 +1,7 @@
 import { Head, router, Link } from '@inertiajs/react';
+import Modal from '@/Components/Modal';
 import { useState, useEffect, useRef } from 'react';
-import { Download, User, Users, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { Download, User, Users, Clock, AlertCircle, Building2, Loader2, Zap, ShieldCheck, LayoutDashboard, AlertTriangle } from 'lucide-react';
 import Footer from '@/Components/Footer';
 import SearchFilters from './Components/SearchFilter';
 import EmployeeList from './Components/EmployeeList';
@@ -20,6 +21,10 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
     const [filterYear, setFilterYear] = useState(currentYear);
     const [status, setStatus] = useState(filters?.status || '');
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [isToModalOpen, setIsToModalOpen] = useState(false);
+    const [toData, setToData] = useState(null); // { employeeName, date, travel_order }
+    const [editingTO, setEditingTO] = useState(null); // { date, value }
+    const [processing, setProcessing] = useState(false);
     const [records, setRecords] = useState({});
     const [loadingEmployees, setLoadingEmployees] = useState(false);
     const [dtrLoading, setDtrLoading] = useState(false);
@@ -157,19 +162,31 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
 
     const updateTravelOrder = async (employeeName, date, travel_order, hasLogs = false) => {
         if (travel_order && hasLogs) {
-            if (!confirm('This day has existing attendance records. Setting a Travel Order will DELETE them. Continue?')) {
-                return false;
-            }
+            setToData({ employeeName, date, travel_order });
+            setIsToModalOpen(true);
+            return false;
         }
 
+        const success = await performTravelOrderUpdate(employeeName, date, travel_order);
+        if (success) setEditingTO(null);
+        return success;
+    };
+
+    const performTravelOrderUpdate = async (employeeName, date, travel_order) => {
+        setProcessing(true);
         try {
             await axios.post('/update-travel-order', { employee: employeeName, date, travel_order });
             handleEmployeeSelect(employeeName);
+            setIsToModalOpen(false);
+            setToData(null);
+            setEditingTO(null);
             return true;
         } catch (err) {
             console.error(err);
             alert('Failed to update travel order.');
             return false;
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -342,12 +359,60 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             processLogs={processLogs}
                             format12Hour={format12Hour}
                             handleDeleteMonth={handleDeleteMonth}
+                            editingTO={editingTO}
+                            setEditingTO={setEditingTO}
                         />
                     </div>
                 </div>
             </main>
 
             <Footer />
+
+            {/* Travel Order Confirmation Modal */}
+            <Modal show={isToModalOpen} onClose={() => setIsToModalOpen(false)} maxWidth="md">
+                <div className="bg-white p-6">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 flex-shrink-0">
+                            <AlertTriangle size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 uppercase">Travel Order Conflict</h3>
+                            <p className="text-sm text-gray-500 font-medium">Existing logs will be removed.</p>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 p-4 rounded border border-gray-200 mb-6">
+                        <p className="text-sm text-gray-700 font-medium leading-relaxed">
+                            The system detected existing attendance records for <span className="font-bold">{toData?.date}</span>. 
+                            Assigning a Travel Order will <span className="text-red-600 font-bold underline">DELETE</span> these records.
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-2 uppercase font-bold tracking-wider">
+                            Employee: {toData?.employeeName}
+                        </p>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsToModalOpen(false);
+                                setEditingTO(null);
+                            }}
+                            className="px-4 py-2 text-xs font-bold text-gray-500 uppercase hover:bg-gray-100 rounded transition-colors"
+                        >
+                            No, Cancel
+                        </button>
+                        <button
+                            onClick={() => performTravelOrderUpdate(toData.employeeName, toData.date, toData.travel_order)}
+                            disabled={processing}
+                            className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                        >
+                            {processing && <Loader2 size={12} className="animate-spin" />}
+                            {processing ? 'Processing...' : 'Yes, Replace with TO'}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

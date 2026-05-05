@@ -40,10 +40,11 @@ export default function DTRRecords({
     processLogs,
     format12Hour,
     handleDeleteMonth,
-    updateTravelOrder
+    updateTravelOrder,
+    editingTO,
+    setEditingTO
 }) {
     const [editing, setEditing] = useState(null); // { id, value, type, date }
-    const [editingTO, setEditingTO] = useState(null); // { date, value }
 
     if (!selectedEmployee) {
         return (
