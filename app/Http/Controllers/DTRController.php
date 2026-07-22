@@ -564,12 +564,14 @@ class DTRController extends Controller
                             ->values()
                             ->toArray();
 
-                        $structured[$dateStr] = [
-                            'weekday' => $weekday,
-                            'logs' => $dayLogs,
-                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                            'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
-                        ];
+                  $structured[$dateStr] = [
+                      'weekday' => $weekday,
+                      'logs' => $dayLogs,
+                      'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                      'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
+                      'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
+                      'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                  ];
                     }
 
                     $result[$monthName] = $structured;
@@ -1115,12 +1117,14 @@ class DTRController extends Controller
                      ->values()
                      ->toArray();
 
-                 $structured[$dateStr] = [
-                     'weekday' => $weekday,
-                     'logs' => $dayLogs,
-                     'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                     'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
-                 ];
+                  $structured[$dateStr] = [
+                      'weekday' => $weekday,
+                      'logs' => $dayLogs,
+                      'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                      'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
+                      'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
+                      'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                  ];
              }
 
              $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
@@ -1143,14 +1147,118 @@ class DTRController extends Controller
          return response()->json(['records' => $result, 'breaks' => $breaks]);
      }
 
-    public function updateLogTime(Request $request)
-    {
-        $id = $request->input('id');
-        $newTime = $request->input('time');
+      public function updateLogTime(Request $request)
+     {
+         $id = $request->input('id');
+         $newTime = $request->input('time');
 
-        $record = DTRRecord::findOrFail($id);
-        $record->update(['log_time' => $newTime]);
+         $record = DTRRecord::findOrFail($id);
+         $record->update(['log_time' => $newTime]);
 
-        return response()->json(['status' => 'success']);
-    }
-}
+         $this->calculateAndSaveDailyLateUndertime($record->employee_name, $record->log_date);
+
+         return response()->json(['status' => 'success']);
+     }
+
+     private function calculateAndSaveDailyLateUndertime($employeeName, $logDate)
+     {
+         $logs = DTRRecord::where('employee_name', $employeeName)
+             ->whereDate('log_date', $logDate)
+             ->orderBy('log_time')
+             ->get();
+
+         $checkIn = null;
+         $checkOut = null;
+
+         foreach ($logs as $log) {
+             $timeObj = Carbon::parse($log->log_time);
+             $hour = (int) $timeObj->format('H');
+             $time12 = $timeObj->format('g:i');
+
+             if ($hour >= 5 && $hour <= 11 && empty($checkIn)) {
+                 $checkIn = $time12;
+             } elseif ($hour >= 13 && $hour <= 21) {
+                 $checkOut = $time12;
+             }
+         }
+
+         $lateMinutes = null;
+         $undertimeMinutes = null;
+
+         if ($checkIn && $checkOut) {
+             $timeToMins = function ($t, $isPM = false) {
+                 if (!$t) return 0;
+                 $parts = explode(':', $t);
+                 $h = (int) $parts[0];
+                 $m = (int) $parts[1];
+                 if ($isPM && $h < 12) $h += 12;
+                 if (!$isPM && $h == 12) $h = 0;
+                 return ($h * 60) + $m;
+             };
+
+             $dayOfWeek = Carbon::parse($logDate)->dayOfWeek;
+             if ($logs->first()?->schedule_type === '10HR') {
+                 $schedStartMins = 7 * 60;
+                 $schedEndMins = 18 * 60;
+                 $latestStart = 8 * 60;
+             } elseif ($logs->first()?->schedule_type === '8HR') {
+                 $schedStartMins = 8 * 60;
+                 $schedEndMins = 17 * 60;
+                 $latestStart = 9 * 60;
+             } else {
+                 $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
+                 $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
+                 $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
+                 $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
+             }
+
+             $shiftLength = $schedEndMins - $schedStartMins;
+             $inMins = $timeToMins($checkIn, false);
+             $outMins = $timeToMins($checkOut, true);
+
+             $late = max(0, $inMins - $latestStart);
+             if ($late > 0) $lateMinutes = $late;
+
+             $is10Hr = ($logs->first()?->schedule_type === '10HR' || ($logs->first()?->schedule_type !== '8HR' && $dayOfWeek >= 1 && $dayOfWeek <= 4));
+             $earliestStart = $is10Hr ? 420 : 360;
+             $effectiveStartMins = max($earliestStart, $inMins);
+
+             if ($outMins !== null) {
+                 $requiredEndMins = $effectiveStartMins + $shiftLength;
+                 $under = max(0, $requiredEndMins - $outMins);
+                 if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+             }
+         }
+
+         DTRRecord::where('employee_name', $employeeName)
+             ->whereDate('log_date', $logDate)
+             ->update([
+                 'late_minutes' => $lateMinutes,
+                 'undertime_minutes' => $undertimeMinutes,
+             ]);
+     }
+
+     public function storeLogTime(Request $request)
+     {
+         $validated = $request->validate([
+             'employee_name' => 'required|string|max:255',
+             'log_date' => 'required|date',
+             'log_time' => 'required|date_format:H:i',
+         ]);
+
+         $status = DTRRecord::where('employee_name', $validated['employee_name'])
+             ->whereDate('log_date', $validated['log_date'])
+             ->value('status');
+
+         $record = DTRRecord::create([
+             'employee_name' => $validated['employee_name'],
+             'log_date' => $validated['log_date'],
+             'log_time' => $validated['log_time'],
+             'status' => $status ?: 'REGULAR',
+         ]);
+
+         $this->calculateAndSaveDailyLateUndertime($validated['employee_name'], $validated['log_date']);
+
+         return response()->json(['status' => 'success', 'log' => $record]);
+     }
+ }

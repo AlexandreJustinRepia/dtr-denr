@@ -166,6 +166,16 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         }
     };
 
+    const createLogTime = async (employeeName, date, time) => {
+        try {
+            await axios.post('/store-log-time', { employee_name: employeeName, log_date: date, log_time: time });
+            handleEmployeeSelect(employeeName);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to add checkout time.');
+        }
+    };
+
     const updateTravelOrder = async (employeeName, date, travel_order, hasLogs = false) => {
         if (travel_order && hasLogs) {
             setToData({ employeeName, date, travel_order });
@@ -421,6 +431,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             handleDownloadDocx={handleDownloadDocx}
                             updateSchedule={updateSchedule}
                             updateLogTime={updateLogTime}
+                            createLogTime={createLogTime}
                             updateTravelOrder={updateTravelOrder}
                             processLogs={processLogs}
                             format12Hour={format12Hour}

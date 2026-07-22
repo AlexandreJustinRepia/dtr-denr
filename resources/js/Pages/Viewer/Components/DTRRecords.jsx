@@ -37,6 +37,7 @@ export default function DTRRecords({
     handleDownloadDocx,
     updateSchedule,
     updateLogTime,
+    createLogTime,
     processLogs,
     format12Hour,
     handleDeleteMonth,
@@ -48,6 +49,7 @@ export default function DTRRecords({
 }) {
     const [editing, setEditing] = useState(null); // { id, value, type, date }
     const [breakEditing, setBreakEditing] = useState(null); // { date, field, value }
+    const [checkoutEditing, setCheckoutEditing] = useState(null); // { date, value }
 
     const manualBreaksByDate = useMemo(() => {
         const map = {};
@@ -179,52 +181,55 @@ export default function DTRRecords({
                                                         const actualOut = outTime ? outTime.time : null;
                                                         const isValidTime = (t) => t && /^\d{2}:\d{2}$/.test(t);
 
-                                                        let lateMinutes = null;
-                                                        let undertimeMinutes = null;
+                                                         let lateMinutes = null;
+                                                         let undertimeMinutes = null;
 
-                                                        const formatMins = (mins) => {
-                                                            if (!mins) return '';
-                                                            const h = Math.floor(mins / 60);
-                                                            const m = mins % 60;
-                                                            if (h > 0 && m > 0) return `${h} hr ${m} min`;
-                                                            if (h > 0) return `${h} hr`;
-                                                            return `${m} min`;
-                                                        };
+                                                         const formatMins = (mins) => {
+                                                             if (!mins) return '';
+                                                             const h = Math.floor(mins / 60);
+                                                             const m = mins % 60;
+                                                             if (h > 0 && m > 0) return `${h} hr ${m} min`;
+                                                             if (h > 0) return `${h} hr`;
+                                                             return `${m} min`;
+                                                         };
 
-                                                        if (isValidTime(actualIn) || isValidTime(actualOut)) {
-                                                            const timeToMins = (t) => {
-                                                                if (!t) return 0;
-                                                                const [h, m] = t.split(':').map(Number);
-                                                                return h * 60 + m;
-                                                            };
+                                                          if (data.late_minutes) {
+                                                              lateMinutes = data.late_minutes;
+                                                          }
+                                                          if (data.undertime_minutes) {
+                                                              undertimeMinutes = data.undertime_minutes;
+                                                          }
 
-                                                            const inMins = actualIn ? timeToMins(actualIn) : null;
-                                                            const outMins = actualOut ? timeToMins(actualOut) : null;
-                                                            const schedStartMins = timeToMins(scheduled.start);
-                                                            const schedEndMins = timeToMins(scheduled.end);
-                                                            const latestStartMins = timeToMins(scheduled.latest);
-                                                            const shiftLength = schedEndMins - schedStartMins;
+                                                          if (!data.late_minutes && !data.undertime_minutes) {
+                                                              if (isValidTime(actualIn) || isValidTime(actualOut)) {
+                                                                  const timeToMins = (t) => {
+                                                                      if (!t) return 0;
+                                                                      const [h, m] = t.split(':').map(Number);
+                                                                      return h * 60 + m;
+                                                                  };
 
-                                                            if (inMins !== null && outMins !== null) {
-                                                                // 1. Calculate Late (strictly based on the latest allowed window)
-                                                                const late = Math.max(0, inMins - latestStartMins);
-                                                                if (late > 0) lateMinutes = late;
+                                                                  const inMins = actualIn ? timeToMins(actualIn) : null;
+                                                                  const outMins = actualOut ? timeToMins(actualOut) : null;
+                                                                  const schedStartMins = timeToMins(scheduled.start);
+                                                                  const schedEndMins = timeToMins(scheduled.end);
+                                                                  const latestStartMins = timeToMins(scheduled.latest);
+                                                                  const shiftLength = schedEndMins - schedStartMins;
 
-                                                                // 2. Calculate Effective Start for Duration
-                                                                // 8H allows 6AM (360), 10H strictly 7AM (420)
-                                                                const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
-                                                                const effectiveStartMins = Math.max(earliestStart, inMins);
+                                                                  if (inMins !== null && outMins !== null) {
+                                                                      const late = Math.max(0, inMins - latestStartMins);
+                                                                      if (late > 0) lateMinutes = late;
 
-                                                                // 3. Calculate Undertime (must fulfill requested shift duration)
-                                                                if (outMins !== null) {
-                                                                    const requiredEndMins = effectiveStartMins + shiftLength;
-                                                                    const undertime = Math.max(0, requiredEndMins - outMins);
-                                                                    if (undertime > 0) {
-                                                                        lateMinutes = (lateMinutes || 0) + undertime;
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
+                                                                      const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
+                                                                      const effectiveStartMins = Math.max(earliestStart, inMins);
+
+                                                                      const requiredEndMins = effectiveStartMins + shiftLength;
+                                                                      const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                      if (undertime > 0) {
+                                                                          lateMinutes = (lateMinutes || 0) + undertime;
+                                                                      }
+                                                                  }
+                                                              }
+                                                          }
 
                                                         return (
                                                             <tr key={date} className="hover:bg-gray-50 transition-colors group">
@@ -369,12 +374,14 @@ export default function DTRRecords({
                                                                                       }}
                                                                                       className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
                                                                                   />
-                                                                              ) : (
+                                                                              ) : inTime ? (
                                                                                   <span
                                                                                       onDoubleClick={() => setBreakEditing({ date, field: 'break_out_time', value: manualBreakOut?.time || breakOut?.time || '' })}
                                                                                       className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
                                                                                       {format12Hour(manualBreakOut) || '--:--'}
                                                                                   </span>
+                                                                              ) : (
+                                                                                  <span className="font-medium text-sm text-gray-300 block">--:--</span>
                                                                               )}
                                                                           </td>
                                                                           <td className="px-4 py-3 text-center">
@@ -397,42 +404,73 @@ export default function DTRRecords({
                                                                                       }}
                                                                                       className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
                                                                                   />
-                                                                              ) : (
+                                                                              ) : inTime ? (
                                                                                   <span
                                                                                       onDoubleClick={() => setBreakEditing({ date, field: 'break_in_time', value: manualBreakIn?.time || breakIn?.time || '' })}
                                                                                       className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
                                                                                       {format12Hour(manualBreakIn) || '--:--'}
                                                                                   </span>
+                                                                              ) : (
+                                                                                  <span className="font-medium text-sm text-gray-300 block">--:--</span>
                                                                               )}
                                                                           </td>
-                                                                        <td className="px-4 py-3 text-center border-l border-gray-100">
-                                                                            {editing && editing.id === outTime?.id ? (
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="time"
-                                                                                    value={editing.value}
-                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                                    onBlur={() => {
-                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                        setEditing(null);
-                                                                                    }}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                            setEditing(null);
-                                                                                        }
-                                                                                        if (e.key === 'Escape') setEditing(null);
-                                                                                    }}
-                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
-                                                                                />
-                                                                            ) : (
-                                                                                <span 
-                                                                                    onClick={() => outTime && setEditing({ id: outTime.id, value: outTime.time })}
-                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : 'text-gray-400'}`}>
-                                                                                    {format12Hour(outTime) || '--:--'}
-                                                                                </span>
-                                                                            )}
-                                                                        </td>
+                                                                         <td className="px-4 py-3 text-center border-l border-gray-100">
+                                                                             {checkoutEditing && checkoutEditing.date === date ? (
+                                                                                 <input
+                                                                                     autoFocus
+                                                                                     type="time"
+                                                                                     value={checkoutEditing.value}
+                                                                                     onChange={(e) => setCheckoutEditing({ ...checkoutEditing, value: e.target.value })}
+                                                                                     onBlur={() => {
+                                                                                         if (checkoutEditing.value) {
+                                                                                             createLogTime(selectedEmployee, date, checkoutEditing.value);
+                                                                                         }
+                                                                                         setCheckoutEditing(null);
+                                                                                     }}
+                                                                                     onKeyDown={(e) => {
+                                                                                         if (e.key === 'Enter') {
+                                                                                             if (checkoutEditing.value) {
+                                                                                                 createLogTime(selectedEmployee, date, checkoutEditing.value);
+                                                                                             }
+                                                                                             setCheckoutEditing(null);
+                                                                                         }
+                                                                                         if (e.key === 'Escape') setCheckoutEditing(null);
+                                                                                     }}
+                                                                                     className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
+                                                                                 />
+                                                                             ) : editing && editing.id === outTime?.id ? (
+                                                                                 <input
+                                                                                     autoFocus
+                                                                                     type="time"
+                                                                                     value={editing.value}
+                                                                                     onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                     onBlur={() => {
+                                                                                         updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                         setEditing(null);
+                                                                                     }}
+                                                                                     onKeyDown={(e) => {
+                                                                                         if (e.key === 'Enter') {
+                                                                                             updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                             setEditing(null);
+                                                                                         }
+                                                                                         if (e.key === 'Escape') setEditing(null);
+                                                                                     }}
+                                                                                     className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
+                                                                                 />
+                                                                              ) : (
+                                                                                  <span 
+                                                                                      onClick={() => {
+                                                                                          if (outTime) {
+                                                                                              setEditing({ id: outTime.id, value: outTime.time });
+                                                                                          } else if (inTime) {
+                                                                                              setCheckoutEditing({ date, value: '' });
+                                                                                          }
+                                                                                      }}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : inTime ? 'text-gray-400 hover:text-gray-500' : 'text-gray-300 cursor-default'}`}>
+                                                                                      {format12Hour(outTime) || '--:--'}
+                                                                                  </span>
+                                                                              )}
+                                                                         </td>
                                                                     </>
                                                                 )}
                                                                 <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
