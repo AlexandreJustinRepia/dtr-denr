@@ -5,13 +5,17 @@
 </p>
 
 <p align="center">
-  <strong>Department of Environment and Natural Resources</strong><br>
-  <em>Bulacan Provincial Office</em>
+  <strong>Provincial Environment and Natural Resources Office</strong><br>
+  <em>PENRO Bulacan</em>
 </p>
 
 ## Overview
 
-A comprehensive Daily Time Record (DTR) management system designed for the Department of Environment and Natural Resources (DENR) Bulacan office. This application streamlines attendance tracking, break management, and DTR document generation.
+A comprehensive Daily Time Record (DTR) management system designed for the Provincial Environment and Natural Resources Office (PENRO) Bulacan. This application streamlines attendance tracking, break management, and DTR document generation.
+
+## Developer
+
+**Developed by:** Alexandre Justin Repia
 
 ## Features
 
