@@ -36,6 +36,7 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::post('/update-schedule', [DTRController::class , 'updateDaySchedule'])->name('dtr.update-schedule');
     Route::post('/update-log-time', [DTRController::class , 'updateLogTime'])->name('dtr.update-log-time');
     Route::post('/store-log-time', [DTRController::class , 'storeLogTime'])->name('dtr.store-log-time');
+    Route::delete('/admin/dtr-logs/{log}', [DTRController::class, 'destroyLogTime'])->name('dtr.logs.destroy');
     Route::post('/update-travel-order', [DTRController::class , 'updateTravelOrder'])->name('dtr.update-travel-order');
     Route::post('/delete-month-records', [DTRController::class, 'deleteMonthRecords'])->name('dtr.delete-month');
     Route::get('/generate-bulk-dtr/{month}/{year}/{status}', [DTRController::class , 'downloadBulkPdf'])->name('dtr.generate-bulk');

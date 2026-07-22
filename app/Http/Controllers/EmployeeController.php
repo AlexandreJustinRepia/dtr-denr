@@ -58,12 +58,8 @@ class EmployeeController extends Controller
         $source = Employee::findOrFail($request->source_id);
         $target = Employee::findOrFail($request->target_id);
 
-        // Reassign all DTR records
-        \App\Models\DTRRecord::where('employee_id', $source->id)->update([
-            'employee_id' => $target->id,
-            'employee_name' => $target->name,
-            'status' => $target->status
-        ]);
+        // Delete all DTR records associated with the source employee
+        \App\Models\DTRRecord::where('employee_id', $source->id)->delete();
 
         // Delete the duplicate employee
         $source->delete();

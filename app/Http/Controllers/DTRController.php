@@ -1238,27 +1238,40 @@ class DTRController extends Controller
              ]);
      }
 
-     public function storeLogTime(Request $request)
-     {
-         $validated = $request->validate([
-             'employee_name' => 'required|string|max:255',
-             'log_date' => 'required|date',
-             'log_time' => 'required|date_format:H:i',
-         ]);
+       public function storeLogTime(Request $request)
+       {
+           $validated = $request->validate([
+               'employee_name' => 'required|string|max:255',
+               'log_date' => 'required|date',
+               'log_time' => 'required|date_format:H:i',
+           ]);
 
-         $status = DTRRecord::where('employee_name', $validated['employee_name'])
-             ->whereDate('log_date', $validated['log_date'])
-             ->value('status');
+           $status = DTRRecord::where('employee_name', $validated['employee_name'])
+               ->whereDate('log_date', $validated['log_date'])
+               ->value('status');
 
-         $record = DTRRecord::create([
-             'employee_name' => $validated['employee_name'],
-             'log_date' => $validated['log_date'],
-             'log_time' => $validated['log_time'],
-             'status' => $status ?: 'REGULAR',
-         ]);
+           $record = DTRRecord::create([
+               'employee_name' => $validated['employee_name'],
+               'log_date' => $validated['log_date'],
+               'log_time' => $validated['log_time'],
+               'log_type' => 'out',
+               'status' => $status ?: 'REGULAR',
+           ]);
 
-         $this->calculateAndSaveDailyLateUndertime($validated['employee_name'], $validated['log_date']);
+           $this->calculateAndSaveDailyLateUndertime($validated['employee_name'], $validated['log_date']);
 
-         return response()->json(['status' => 'success', 'log' => $record]);
-     }
- }
+           return response()->json(['status' => 'success', 'log' => $record]);
+       }
+
+       public function destroyLogTime(DTRRecord $log)
+       {
+           $employeeName = $log->employee_name;
+           $logDate = $log->log_date;
+
+           $log->delete();
+
+           $this->calculateAndSaveDailyLateUndertime($employeeName, $logDate);
+
+           return response()->json(['status' => 'success']);
+       }
+   }

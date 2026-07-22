@@ -19,7 +19,7 @@ import {
     Filter
 } from 'lucide-react';
 
-export default function BreakManagement({ breaks, filters, employees }) {
+export default function BreakManagement({ breaks, filters, employees, checkouts }) {
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [fromDate, setFromDate] = useState(filters?.from_date || '');
     const [toDate, setToDate] = useState(filters?.to_date || '');
@@ -28,6 +28,7 @@ export default function BreakManagement({ breaks, filters, employees }) {
     const [modalMode, setModalMode] = useState('create');
     const [editingId, setEditingId] = useState(null);
     const [breakToDelete, setBreakToDelete] = useState(null);
+    const [checkoutToDelete, setCheckoutToDelete] = useState(null);
 
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState({});
@@ -40,6 +41,19 @@ export default function BreakManagement({ breaks, filters, employees }) {
         break_out_time: '',
         break_in_time: '',
     });
+
+    const checkoutLookup = React.useMemo(() => {
+        const map = {};
+        if (checkouts) {
+            Object.entries(checkouts).forEach(([employeeName, dates]) => {
+                if (!map[employeeName]) map[employeeName] = {};
+                Object.entries(dates).forEach(([logDate, record]) => {
+                    map[employeeName][logDate] = record;
+                });
+            });
+        }
+        return map;
+    }, [checkouts]);
 
     const openCreateModal = () => {
         setModalMode('create');
@@ -149,7 +163,7 @@ export default function BreakManagement({ breaks, filters, employees }) {
                 alert(response.data.error);
             } else {
                 showSuccess('Break record removed successfully');
-                router.reload({ only: ['breaks'] });
+            router.reload({ only: ['breaks', 'checkouts'] });
             }
             closeDeleteModal();
         } catch (error) {
@@ -159,6 +173,22 @@ export default function BreakManagement({ breaks, filters, employees }) {
                 console.error(error);
                 alert('Failed to delete break record.');
             }
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleCheckoutDelete = async (logId) => {
+        if (!confirm('Are you sure you want to delete this checkout record?')) return;
+
+        setProcessing(true);
+        try {
+            await axios.delete(route('dtr.logs.destroy', logId));
+            showSuccess('Checkout record removed successfully');
+            router.reload({ only: ['breaks', 'checkouts'] });
+        } catch (error) {
+            console.error(error);
+            alert('Failed to delete checkout record.');
         } finally {
             setProcessing(false);
         }
@@ -250,6 +280,7 @@ export default function BreakManagement({ breaks, filters, employees }) {
                                     <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500">Date</th>
                                     <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-center">Break Out</th>
                                     <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-center">Break In</th>
+                                    <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-center">Check Out</th>
                                     <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -290,8 +321,18 @@ export default function BreakManagement({ breaks, filters, employees }) {
                                                     <Clock size={12} />
                                                     {br.break_in_time || '--:--'}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-3 text-right">
+                                             </td>
+                                             <td className="px-6 py-3 text-center">
+                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${
+                                                      checkoutLookup[br.employee_name]?.[br.log_date]?.checkout_time
+                                                         ? 'bg-red-50 text-red-700 border-red-200'
+                                                         : 'bg-gray-50 text-gray-400 border-gray-200'
+                                                 }`}>
+                                                     <Clock size={12} />
+                                                     {checkoutLookup[br.employee_name]?.[br.log_date] || '--:--'}
+                                                 </span>
+                                             </td>
+                                             <td className="px-6 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <button
                                                         onClick={() => openEditModal(br)}
@@ -313,7 +354,7 @@ export default function BreakManagement({ breaks, filters, employees }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
+                                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
                                             <div className="flex flex-col items-center gap-2">
                                                 <Clock size={32} className="text-gray-300" />
                                                 <p className="text-sm font-medium">No break records found matching your search</p>
@@ -370,6 +411,75 @@ export default function BreakManagement({ breaks, filters, employees }) {
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
+
+            <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+                        <Clock size={16} className="text-red-600" />
+                        Checkout Records
+                    </h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500">Employee</th>
+                                <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500">Date</th>
+                                <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-center">Checkout Time</th>
+                                <th className="px-6 py-3 text-xs font-bold uppercase text-gray-500 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {checkouts && Object.keys(checkouts).length > 0 ? (
+                                Object.entries(checkouts).flatMap(([employeeName, dates]) =>
+                                    Object.entries(dates).map(([logDate, record]) => (
+                                        <tr key={`${employeeName}-${logDate}`} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-700 flex-shrink-0">
+                                                        <User size={14} />
+                                                    </div>
+                                                    <span className="font-bold text-gray-900">{employeeName}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-3">
+                                                <span className="inline-flex items-center gap-1.5 text-gray-700">
+                                                    <Calendar size={14} className="text-gray-400" />
+                                                    {logDate}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 text-center">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase border bg-red-50 text-red-700 border-red-200">
+                                                    <Clock size={12} />
+                                                    {record.checkout_time}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-3 text-right">
+                                                <button
+                                                    onClick={() => handleCheckoutDelete(record.id)}
+                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors border border-transparent hover:border-red-200"
+                                                    title="Delete Checkout"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )
+                            ) : (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <Clock size={32} className="text-gray-300" />
+                                                <p className="text-sm font-medium">No checkout records found</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\BreakRecord;
 use App\Models\Employee;
+use App\Models\DTRRecord;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class BreakController extends Controller
 {
@@ -27,10 +30,37 @@ class BreakController extends Controller
 
         $breaks = $query->orderByDesc('log_date')->orderBy('employee_name')->paginate(10)->withQueryString();
 
+        $checkoutQuery = DTRRecord::where('log_type', 'out');
+
+        if ($request->search) {
+            $checkoutQuery->where('employee_name', 'like', "%{$request->search}%");
+        }
+
+        if ($request->from_date) {
+            $checkoutQuery->whereDate('log_date', '>=', $request->from_date);
+        }
+
+        if ($request->to_date) {
+            $checkoutQuery->whereDate('log_date', '<=', $request->to_date);
+        }
+
+        $checkouts = $checkoutQuery->get()
+            ->map(function ($record) {
+                return [
+                    'id' => $record->id,
+                    'employee_name' => $record->employee_name,
+                    'log_date' => Carbon::parse($record->log_date)->format('Y-m-d'),
+                    'checkout_time' => Carbon::parse($record->log_time)->format('g:i'),
+                ];
+            })
+            ->groupBy('employee_name')
+            ->map(fn($items) => $items->keyBy('log_date'));
+
         return Inertia::render('Admin/BreakManagement', [
             'breaks' => $breaks,
             'filters' => $request->only(['search', 'from_date', 'to_date']),
             'employees' => Employee::orderBy('name')->get(['id', 'name']),
+            'checkouts' => $checkouts,
         ]);
     }
 
