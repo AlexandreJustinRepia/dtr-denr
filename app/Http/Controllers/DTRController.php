@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use DateTime;
 use App\Models\DTRRecord;
+use App\Models\BreakRecord;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\IOFactory;
@@ -383,7 +384,7 @@ class DTRController extends Controller
                 foreach ($days as $date => $rec) {
                     $employee = $this->findExistingEmployee($name);
                     if (!$employee) {
-                        $employee = \App\Models\Employee::create(['name' => $name]);
+                        $employee = \App\Models\Employee::create(['name' => $name, 'status' => 'JO']);
                     }
                     $status = $employee->status;
                     foreach ($rec['logs'] as $log) {
@@ -638,6 +639,12 @@ class DTRController extends Controller
             ->get()
             ->groupBy('log_date');
 
+        $breakRecords = BreakRecord::where('employee_name', $employee)
+            ->whereMonth('log_date', $parsedMonth->month)
+            ->whereYear('log_date', $parsedMonth->year)
+            ->get()
+            ->keyBy(fn($br) => Carbon::parse($br->log_date)->format('Y-m-d'));
+
         $templateProcessor = new TemplateProcessor($templatePath);
 
         // Replace placeholders
@@ -681,6 +688,18 @@ class DTRController extends Controller
                         }
                     } elseif ($hour >= 13 && $hour <= 21) {
                         $checkOut = $time12;
+                    }
+                }
+
+                if (!$travelOrder) {
+                    $manualBreak = $breakRecords[$dateStr] ?? null;
+                    if ($manualBreak) {
+                        if ($manualBreak->break_out_time) {
+                            $breakOut = Carbon::parse($manualBreak->break_out_time)->format('g:i');
+                        }
+                        if ($manualBreak->break_in_time) {
+                            $breakIn = Carbon::parse($manualBreak->break_in_time)->format('g:i');
+                        }
                     }
                 }
             }
@@ -743,7 +762,7 @@ class DTRController extends Controller
                         $requiredEndMins = $effectiveStartMins + $shiftLength;
                         $under = max(0, $requiredEndMins - $outMins);
                         if ($under > 0)
-                            $undertimeMinutes = $under;
+                            $lateMinutes = ($lateMinutes ?? 0) + $under;
                     }
                 }
             }
@@ -1068,48 +1087,61 @@ class DTRController extends Controller
         return response()->download($finalPdfPath)->deleteFileAfterSend(true);
     }
 
-    public function fetchEmployeeDTR($employee, $month, $year, $status = null)
-    {
-        $logs = DTRRecord::where('employee_name', $employee)
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->whereYear('log_date', $year)
-            ->whereMonth('log_date', $month)
-            ->orderBy('log_date')
-            ->orderBy('log_time')
-            ->get()
-            ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
+     public function fetchEmployeeDTR($employee, $month, $year, $status = null)
+     {
+         $logs = DTRRecord::where('employee_name', $employee)
+             ->when($status, fn($q) => $q->where('status', $status))
+             ->whereYear('log_date', $year)
+             ->whereMonth('log_date', $month)
+             ->orderBy('log_date')
+             ->orderBy('log_time')
+             ->get()
+             ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
 
-        $result = [];
+         $result = [];
 
-        foreach ($logs as $monthKey => $daysGroup) {
-            $yearNum = (int) substr($monthKey, 0, 4);
-            $monthNum = (int) substr($monthKey, 5, 2);
-            $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
+         foreach ($logs as $monthKey => $daysGroup) {
+             $yearNum = (int) substr($monthKey, 0, 4);
+             $monthNum = (int) substr($monthKey, 5, 2);
+             $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
 
-            $structured = [];
-            for ($day = 1; $day <= $daysInMonth; $day++) {
-                $dateStr = Carbon::create($yearNum, $monthNum, $day)->format('Y-m-d');
-                $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
+             $structured = [];
+             for ($day = 1; $day <= $daysInMonth; $day++) {
+                 $dateStr = Carbon::create($yearNum, $monthNum, $day)->format('Y-m-d');
+                 $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
 
-                $dayLogs = $daysGroup->where('log_date', $dateStr)
-                    ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
-                    ->values()
-                    ->toArray();
+                 $dayLogs = $daysGroup->where('log_date', $dateStr)
+                     ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
+                     ->values()
+                     ->toArray();
 
-                $structured[$dateStr] = [
-                    'weekday' => $weekday,
-                    'logs' => $dayLogs,
-                    'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                    'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
-                ];
-            }
+                 $structured[$dateStr] = [
+                     'weekday' => $weekday,
+                     'logs' => $dayLogs,
+                     'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                     'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order
+                 ];
+             }
 
-            $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
-            $result[$monthName] = $structured;
-        }
+             $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
+             $result[$monthName] = $structured;
+         }
 
-        return response()->json(['records' => $result]);
-    }
+         $breaks = \App\Models\BreakRecord::where('employee_name', $employee)
+             ->whereYear('log_date', $year)
+             ->whereMonth('log_date', $month)
+             ->get()
+             ->map(fn($br) => [
+                 'id' => $br->id,
+                 'log_date' => Carbon::parse($br->log_date)->format('Y-m-d'),
+                 'break_out_time' => $br->break_out_time,
+                 'break_in_time' => $br->break_in_time,
+             ])
+             ->values()
+             ->toArray();
+
+         return response()->json(['records' => $result, 'breaks' => $breaks]);
+     }
 
     public function updateLogTime(Request $request)
     {

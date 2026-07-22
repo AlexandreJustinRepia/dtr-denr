@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DTRController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\BreakController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -49,6 +50,12 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::post('/admin/users', [UserController::class, 'store'])->name('users.store');
     Route::patch('/admin/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+    // Break Management
+    Route::get('/admin/breaks', [BreakController::class, 'index'])->name('breaks.index');
+    Route::post('/admin/breaks', [BreakController::class, 'store'])->name('breaks.store');
+    Route::patch('/admin/breaks/{break}', [BreakController::class, 'update'])->name('breaks.update');
+    Route::delete('/admin/breaks/{break}', [BreakController::class, 'destroy'])->name('breaks.destroy');
 });
 
 

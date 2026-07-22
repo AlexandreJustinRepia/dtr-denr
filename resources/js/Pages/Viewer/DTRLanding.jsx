@@ -29,6 +29,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
     const [loadingEmployees, setLoadingEmployees] = useState(false);
     const [dtrLoading, setDtrLoading] = useState(false);
     const [downloadLoading, setDownloadLoading] = useState({});
+    const [breaks, setBreaks] = useState({});
 
     const employeeList = employees.data;
 
@@ -38,6 +39,11 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         try {
             const res = await axios.get(`/fetch-dtr/${encodeURIComponent(employeeName)}/${filterMonth}/${filterYear}?status=${status}`);
             setRecords({ [employeeName]: res.data.records });
+            const breaksMap = {};
+            (res.data.breaks || []).forEach(b => {
+                breaksMap[b.log_date] = b;
+            });
+            setBreaks(breaksMap);
         } catch (err) {
             console.error(err);
             alert('Failed to load DTR.');
@@ -219,6 +225,59 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         }
     };
 
+     const upsertBreak = async (employeeName, logDate, field, value) => {
+         if (!value) return false;
+         
+         const cleanValue = String(value).replace(/\s*(AM|PM|am|pm)\s*/i, '').trim();
+         const rawParts = cleanValue.split(':');
+         const hours = parseInt(rawParts[0], 10);
+         const minutes = parseInt(rawParts[1], 10);
+         
+         if (hours !== 12 || minutes < 0 || minutes > 59 || isNaN(hours) || isNaN(minutes)) {
+             alert('Break times must be between 12:00 PM and 12:59 PM.');
+             return false;
+         }
+
+         try {
+             const existing = breaks[logDate];
+             let newBreak;
+             if (existing && existing.id) {
+                 const response = await axios.patch(`/admin/breaks/${existing.id}`, {
+                     employee_name: employeeName,
+                     log_date: logDate,
+                     [field]: cleanValue,
+                 });
+                 newBreak = response.data.break;
+             } else {
+                 const payload = {
+                     employee_name: employeeName,
+                     log_date: logDate,
+                     [field]: cleanValue,
+                 };
+                 if (field === 'break_out_time') payload.break_in_time = null;
+                 if (field === 'break_in_time') payload.break_out_time = null;
+                 const response = await axios.post('/admin/breaks', payload);
+                 newBreak = response.data.break;
+             }
+             
+             setBreaks(prev => ({
+                 ...prev,
+                 [logDate]: newBreak
+             }));
+             
+             return true;
+         } catch (err) {
+             console.error(err);
+             if (err.response?.data?.errors) {
+                 const msgs = Object.values(err.response.data.errors).flat().join('\n');
+                 alert(msgs);
+             } else {
+                 alert('Failed to save break time.');
+             }
+             return false;
+         }
+     };
+ 
     const performRequest = ({ searchValue, monthValue, yearValue, statusValue, updateList = true }) => {
         if (updateList) setLoadingEmployees(true);
         else setDtrLoading(true);
@@ -311,6 +370,13 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             <Users size={16} />
                             Manage Personnel
                         </Link>
+                        <Link 
+                            href={route('breaks.index')}
+                            className="inline-flex items-center gap-2 bg-white text-green-800 px-4 py-2 rounded text-sm font-semibold shadow-sm hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors"
+                        >
+                            <Clock size={16} />
+                            Manage Breaks
+                        </Link>
                     </div>
                 </div>
             </header>
@@ -361,6 +427,8 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             handleDeleteMonth={handleDeleteMonth}
                             editingTO={editingTO}
                             setEditingTO={setEditingTO}
+                            upsertBreak={upsertBreak}
+                            breaks={breaks}
                         />
                     </div>
                 </div>

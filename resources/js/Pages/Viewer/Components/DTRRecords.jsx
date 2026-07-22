@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2, Trash2, X } from "lucide-react";
 
 // Helper functions for shift schedules and flexi time
@@ -42,9 +42,20 @@ export default function DTRRecords({
     handleDeleteMonth,
     updateTravelOrder,
     editingTO,
-    setEditingTO
+    setEditingTO,
+    breaks,
+    upsertBreak
 }) {
     const [editing, setEditing] = useState(null); // { id, value, type, date }
+    const [breakEditing, setBreakEditing] = useState(null); // { date, field, value }
+
+    const manualBreaksByDate = useMemo(() => {
+        const map = {};
+        (Object.values(breaks || {})).forEach(b => {
+            map[b.log_date] = b;
+        });
+        return map;
+    }, [breaks]);
 
     if (!selectedEmployee) {
         return (
@@ -158,6 +169,9 @@ export default function DTRRecords({
                                                 <tbody className="divide-y divide-gray-200">
                                                     {Object.entries(days).map(([date, data]) => {
                                                         const { inTime, breakOut, breakIn, outTime } = processLogs(data.logs);
+                                                        const manualBreak = manualBreaksByDate[date] || null;
+                                                        const manualBreakOut = manualBreak?.break_out_time ? { id: 'break-out-' + date, time: manualBreak.break_out_time } : breakOut;
+                                                        const manualBreakIn = manualBreak?.break_in_time ? { id: 'break-in-' + date, time: manualBreak.break_in_time } : breakIn;
                                                         const dayNum = new Date(date).getDate();
                                                         // Calculate scheduled times and flexi eligibility 
                                                         const scheduled = getScheduledTimes(date, data.schedule_type);
@@ -204,7 +218,10 @@ export default function DTRRecords({
                                                                 // 3. Calculate Undertime (must fulfill requested shift duration)
                                                                 if (outMins !== null) {
                                                                     const requiredEndMins = effectiveStartMins + shiftLength;
-                                                                    undertimeMinutes = Math.max(0, requiredEndMins - outMins);
+                                                                    const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                    if (undertime > 0) {
+                                                                        lateMinutes = (lateMinutes || 0) + undertime;
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -332,62 +349,62 @@ export default function DTRRecords({
                                                                                 </span>
                                                                             )}
                                                                         </td>
-                                                                        <td className="px-4 py-3 text-center">
-                                                                            {editing && editing.id === breakOut?.id ? (
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="time"
-                                                                                    value={editing.value}
-                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                                    onBlur={() => {
-                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                        setEditing(null);
-                                                                                    }}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                            setEditing(null);
-                                                                                        }
-                                                                                        if (e.key === 'Escape') setEditing(null);
-                                                                                    }}
-                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
-                                                                                />
-                                                                            ) : (
-                                                                                <span 
-                                                                                    onClick={() => breakOut && setEditing({ id: breakOut.id, value: breakOut.time })}
-                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${breakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
-                                                                                    {format12Hour(breakOut) || '--:--'}
-                                                                                </span>
-                                                                            )}
-                                                                        </td>
-                                                                        <td className="px-4 py-3 text-center">
-                                                                            {editing && editing.id === breakIn?.id ? (
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="time"
-                                                                                    value={editing.value}
-                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                                    onBlur={() => {
-                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                        setEditing(null);
-                                                                                    }}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                            setEditing(null);
-                                                                                        }
-                                                                                        if (e.key === 'Escape') setEditing(null);
-                                                                                    }}
-                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
-                                                                                />
-                                                                            ) : (
-                                                                                <span 
-                                                                                    onClick={() => breakIn && setEditing({ id: breakIn.id, value: breakIn.time })}
-                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${breakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
-                                                                                    {format12Hour(breakIn) || '--:--'}
-                                                                                </span>
-                                                                            )}
-                                                                        </td>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {breakEditing && breakEditing.date === date && breakEditing.field === 'break_out_time' ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={breakEditing.value}
+                                                                                      onChange={(e) => setBreakEditing({ ...breakEditing, value: e.target.value })}
+                                                                                      onBlur={async () => {
+                                                                                          const success = await upsertBreak(selectedEmployee, date, 'break_out_time', breakEditing.value);
+                                                                                          if (success) setBreakEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={async (e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              const success = await upsertBreak(selectedEmployee, date, 'break_out_time', breakEditing.value);
+                                                                                              if (success) setBreakEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setBreakEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : (
+                                                                                  <span
+                                                                                      onDoubleClick={() => setBreakEditing({ date, field: 'break_out_time', value: manualBreakOut?.time || breakOut?.time || '' })}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                      {format12Hour(manualBreakOut) || '--:--'}
+                                                                                  </span>
+                                                                              )}
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {breakEditing && breakEditing.date === date && breakEditing.field === 'break_in_time' ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={breakEditing.value}
+                                                                                      onChange={(e) => setBreakEditing({ ...breakEditing, value: e.target.value })}
+                                                                                      onBlur={async () => {
+                                                                                          const success = await upsertBreak(selectedEmployee, date, 'break_in_time', breakEditing.value);
+                                                                                          if (success) setBreakEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={async (e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              const success = await upsertBreak(selectedEmployee, date, 'break_in_time', breakEditing.value);
+                                                                                              if (success) setBreakEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setBreakEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : (
+                                                                                  <span
+                                                                                      onDoubleClick={() => setBreakEditing({ date, field: 'break_in_time', value: manualBreakIn?.time || breakIn?.time || '' })}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                      {format12Hour(manualBreakIn) || '--:--'}
+                                                                                  </span>
+                                                                              )}
+                                                                          </td>
                                                                         <td className="px-4 py-3 text-center border-l border-gray-100">
                                                                             {editing && editing.id === outTime?.id ? (
                                                                                 <input
