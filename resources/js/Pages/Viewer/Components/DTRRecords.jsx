@@ -182,60 +182,51 @@ export default function DTRRecords({
                                                         const actualOut = outTime ? outTime.time : null;
                                                         const isValidTime = (t) => t && /^\d{2}:\d{2}$/.test(t);
 
-                                                         let lateMinutes = null;
-                                                         let undertimeMinutes = null;
+                                                          let lateMinutes = null;
+                                                          let undertimeMinutes = null;
 
-                                                         const formatMins = (mins) => {
-                                                             if (!mins) return '';
-                                                             const h = Math.floor(mins / 60);
-                                                             const m = mins % 60;
-                                                             if (h > 0 && m > 0) return `${h} hr ${m} min`;
-                                                             if (h > 0) return `${h} hr`;
-                                                             return `${m} min`;
-                                                         };
+                                                          const formatMins = (mins) => {
+                                                              if (!mins) return '';
+                                                              const h = Math.floor(mins / 60);
+                                                              const m = mins % 60;
+                                                              if (h > 0 && m > 0) return `${h} hr ${m} min`;
+                                                              if (h > 0) return `${h} hr`;
+                                                              return `${m} min`;
+                                                          };
 
-                                                          if (data.late_minutes) {
-                                                              lateMinutes = data.late_minutes;
-                                                          }
-                                                          if (data.undertime_minutes) {
-                                                              undertimeMinutes = data.undertime_minutes;
-                                                          }
+                                                           if (isValidTime(actualIn) || isValidTime(actualOut)) {
+                                                               const timeToMins = (t) => {
+                                                                   if (!t) return 0;
+                                                                   const [h, m] = t.split(':').map(Number);
+                                                                   return h * 60 + m;
+                                                               };
 
-                                                          if (!data.late_minutes && !data.undertime_minutes) {
-                                                              if (isValidTime(actualIn) || isValidTime(actualOut)) {
-                                                                  const timeToMins = (t) => {
-                                                                      if (!t) return 0;
-                                                                      const [h, m] = t.split(':').map(Number);
-                                                                      return h * 60 + m;
-                                                                  };
+                                                                const inMins = actualIn ? timeToMins(actualIn) : null;
+                                                                const outMins = actualOut ? timeToMins(actualOut) : null;
+                                                                const schedStartMins = timeToMins(scheduled.start);
+                                                                const schedEndMins = timeToMins(scheduled.end);
+                                                                const latestStartMins = timeToMins(scheduled.latest);
+                                                                const shiftLength = schedEndMins - schedStartMins;
 
-                                                                   const inMins = actualIn ? timeToMins(actualIn) : null;
-                                                                   const outMins = actualOut ? timeToMins(actualOut) : null;
-                                                                   const schedStartMins = timeToMins(scheduled.start);
-                                                                   const schedEndMins = timeToMins(scheduled.end);
-                                                                   const latestStartMins = timeToMins(scheduled.latest);
-                                                                   const shiftLength = schedEndMins - schedStartMins;
+                                                                if (inMins !== null && outMins !== null && !data.holiday) {
+                                                                    const late = Math.max(0, inMins - latestStartMins);
+                                                                    if (late > 0) lateMinutes = late;
 
-                                                                   if (inMins !== null && outMins !== null && !data.holiday) {
-                                                                       const late = Math.max(0, inMins - latestStartMins);
-                                                                       if (late > 0) lateMinutes = late;
+                                                                    const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
+                                                                    const effectiveStartMins = Math.max(earliestStart, inMins);
 
-                                                                       const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
-                                                                       const effectiveStartMins = Math.max(earliestStart, inMins);
-
-                                                                       let requiredEndMins;
-                                                                       if (data.schedule_type === '8HR_FLEXI') {
-                                                                           requiredEndMins = inMins + 540; // 9 hours from check-in
-                                                                       } else {
-                                                                           requiredEndMins = effectiveStartMins + shiftLength;
-                                                                       }
-                                                                       const undertime = Math.max(0, requiredEndMins - outMins);
-                                                                       if (undertime > 0) {
-                                                                           lateMinutes = (lateMinutes || 0) + undertime;
-                                                                       }
-                                                                   }
-                                                              }
-                                                          }
+                                                                    let requiredEndMins;
+                                                                    if (data.schedule_type === '8HR_FLEXI') {
+                                                                        requiredEndMins = inMins + 540; // 9 hours from check-in
+                                                                    } else {
+                                                                        requiredEndMins = effectiveStartMins + shiftLength;
+                                                                    }
+                                                                    const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                    if (undertime > 0) {
+                                                                        lateMinutes = (lateMinutes || 0) + undertime;
+                                                                    }
+                                                                }
+                                                           }
 
                                                          const isHoliday = data.holiday && (data.holiday.type === 'holiday' || data.holiday.type === 'suspended');
 

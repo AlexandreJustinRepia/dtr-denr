@@ -683,7 +683,6 @@ class DTRController extends Controller
         }
 
         $records = DTRRecord::where('employee_name', $employee)
-            ->when($status, fn($q) => $q->whereHas('employeeByName', fn($q2) => $q2->where('status', $status)))
             ->whereMonth('log_date', $parsedMonth->month)
             ->whereYear('log_date', $parsedMonth->year)
             ->orderBy('log_date')
