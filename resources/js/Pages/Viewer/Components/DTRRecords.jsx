@@ -215,7 +215,7 @@ export default function DTRRecords({
                                                                   const latestStartMins = timeToMins(scheduled.latest);
                                                                   const shiftLength = schedEndMins - schedStartMins;
 
-                                                                  if (inMins !== null && outMins !== null) {
+                                                                  if (inMins !== null && outMins !== null && !data.holiday) {
                                                                       const late = Math.max(0, inMins - latestStartMins);
                                                                       if (late > 0) lateMinutes = late;
 
@@ -231,40 +231,55 @@ export default function DTRRecords({
                                                               }
                                                           }
 
-                                                        return (
-                                                            <tr key={date} className="hover:bg-gray-50 transition-colors group">
-                                                                <td className="px-4 py-3">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="font-semibold text-gray-900 w-5">{dayNum}</span>
-                                                                        <div className="flex flex-col">
-                                                                            <span className="text-xs text-gray-500 font-medium group-hover:text-green-700 transition-colors">{data.weekday}</span>
-                                                                            <div className="flex items-center gap-1 mt-0.5">
-                                                                                <button 
-                                                                                    onClick={() => updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
-                                                                                    title="Change Schedule"
-                                                                                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors w-fit ${
-                                                                                        data.schedule_type === '10HR' 
-                                                                                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                                                                                            : data.schedule_type === '8HR'
-                                                                                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                                                                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                    }`}
-                                                                                >
-                                                                                    {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
-                                                                                </button>
-                                                                                {!data.travel_order && (
-                                                                                    <button 
-                                                                                        onClick={() => setEditingTO({ date, value: '' })}
-                                                                                        title="Set Travel Order"
-                                                                                        className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors"
-                                                                                    >
-                                                                                        TO
-                                                                                    </button>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </td>
+                                                         const isHoliday = data.holiday && (data.holiday.type === 'holiday' || data.holiday.type === 'suspended');
+
+                                                         return (
+                                                             <tr key={date} className={`hover:bg-gray-50 transition-colors group ${isHoliday ? 'bg-red-50/40' : ''}`}>
+                                                                 <td className="px-4 py-3">
+                                                                     <div className="flex items-center gap-3">
+                                                                         <span className="font-semibold text-gray-900 w-5">{dayNum}</span>
+                                                                         <div className="flex flex-col">
+                                                                             <span className={`text-xs font-medium group-hover:text-green-700 transition-colors ${isHoliday ? 'text-red-600 font-bold' : 'text-gray-500'}`}>{data.weekday}</span>
+                                                                             <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                                                                 <button 
+                                                                                     onClick={() => isHoliday ? null : updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
+                                                                                     title={isHoliday ? "Cannot change schedule on holidays" : "Change Schedule"}
+                                                                                     disabled={isHoliday}
+                                                                                     className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors w-fit ${
+                                                                                         isHoliday
+                                                                                             ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                                                             : data.schedule_type === '10HR' 
+                                                                                                 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                                                                                 : data.schedule_type === '8HR'
+                                                                                                     ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                                                                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                     }`}
+                                                                                 >
+                                                                                     {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
+                                                                                 </button>
+                                                                                 {!data.travel_order && isHoliday && (
+                                                                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border bg-red-100 text-red-700 border-red-200 uppercase tracking-wider">
+                                                                                         {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
+                                                                                     </span>
+                                                                                 )}
+                                                                                 {!data.travel_order && !isHoliday && (
+                                                                                     <button 
+                                                                                         onClick={() => setEditingTO({ date, value: '' })}
+                                                                                         title="Set Travel Order"
+                                                                                         className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-colors"
+                                                                                     >
+                                                                                         TO
+                                                                                     </button>
+                                                                                 )}
+                                                                             </div>
+                                                                             {isHoliday && (
+                                                                                 <span className="text-[10px] text-red-600 font-medium mt-0.5 leading-tight">
+                                                                                     {data.holiday.name}
+                                                                                 </span>
+                                                                             )}
+                                                                         </div>
+                                                                     </div>
+                                                                 </td>
 
                                                                 {data.travel_order || (editingTO && editingTO.date === date) ? (
                                                                     <td colSpan="4" className="px-4 py-3 text-center bg-yellow-50/30">

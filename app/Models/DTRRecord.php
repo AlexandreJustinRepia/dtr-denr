@@ -32,4 +32,9 @@ class DTRRecord extends Model
     {
         return $this->belongsTo(Employee::class);
     }
+
+    public function employeeByName()
+    {
+        return $this->belongsTo(Employee::class, 'employee_name', 'name');
+    }
 }

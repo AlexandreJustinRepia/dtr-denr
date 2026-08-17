@@ -18,7 +18,8 @@ import {
     Settings,
     HelpCircle,
     Users,
-    Clock
+    Clock,
+    Calendar
 } from 'lucide-react';
 
 export default function AuthenticatedLayout({ header, children }) {
@@ -31,6 +32,7 @@ export default function AuthenticatedLayout({ header, children }) {
         { label: 'Dashboard', href: route('dashboard'), icon: LayoutDashboard, active: route().current('dashboard') },
         { label: 'Log Processor', href: route('dtr'), icon: FileText, active: route().current('dtr') },
         { label: 'Break Manager', href: route('breaks.index'), icon: Clock, active: route().current('breaks.index') },
+        { label: 'Holiday Manager', href: route('holidays.index'), icon: Calendar, active: route().current('holidays.index') },
         { label: 'System Users', href: route('users.index'), icon: Users, active: route().current('users.index') },
     ];
 

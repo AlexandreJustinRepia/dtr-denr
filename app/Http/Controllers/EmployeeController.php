@@ -58,10 +58,16 @@ class EmployeeController extends Controller
         $source = Employee::findOrFail($request->source_id);
         $target = Employee::findOrFail($request->target_id);
 
-        // Delete all DTR records associated with the source employee
-        \App\Models\DTRRecord::where('employee_id', $source->id)->delete();
+        \App\Models\DTRRecord::where('employee_id', $source->id)->update([
+            'employee_id' => $target->id,
+            'employee_name' => $target->name,
+        ]);
 
-        // Delete the duplicate employee
+        \App\Models\BreakRecord::where('employee_id', $source->id)->update([
+            'employee_id' => $target->id,
+            'employee_name' => $target->name,
+        ]);
+
         $source->delete();
 
         return back()->with('success', "Merged {$source->name} into {$target->name} successfully.");

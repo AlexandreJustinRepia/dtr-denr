@@ -7,11 +7,13 @@ use Inertia\Inertia;
 use DateTime;
 use App\Models\DTRRecord;
 use App\Models\BreakRecord;
+use App\Models\Employee;
 use Carbon\Carbon;
 use PhpOffice\PhpWord\TemplateProcessor;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
 use App\Models\DTRBatch;
+use App\Models\Holiday;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 
@@ -492,6 +494,13 @@ class DTRController extends Controller
 
 
 
+    private function isHolidayOrSuspended($dateStr)
+    {
+        $holiday = Holiday::where('date', $dateStr)->first();
+        if (!$holiday) return null;
+        return $holiday;
+    }
+
     // Viewer landing page
     public function view()
     {
@@ -522,22 +531,35 @@ class DTRController extends Controller
             }
         }
 
+        // Pre-load holidays for the selected month
+        $holidaysInMonth = Holiday::whereYear('date', $yearFilter)
+            ->whereMonth('date', $monthFilter)
+            ->get()
+            ->keyBy(fn($h) => Carbon::parse($h->date)->format('Y-m-d'));
+
         // Employees query (NOT paginated yet)
-        $employeesQuery = DTRRecord::select('employee_name')
-            ->when($search, fn($q) => $q->where('employee_name', 'like', "%{$search}%"))
-            ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
-            ->whereYear('log_date', $yearFilter)
-            ->whereMonth('log_date', $monthFilter)
-            ->groupBy('employee_name')
-            ->orderBy('employee_name');
+        $employeesQuery = DTRRecord::select('dtr_records.employee_name')
+            ->leftJoin('employees', 'employees.name', '=', 'dtr_records.employee_name')
+            ->when($search, fn($q) => $q->where('dtr_records.employee_name', 'like', "%{$search}%"))
+            ->when($statusFilter, fn($q) => $q->where(function($q2) use ($statusFilter) {
+                $q2->where('employees.status', $statusFilter)
+                   ->orWhere(function($q3) use ($statusFilter) {
+                       $q3->whereNull('employees.id')
+                          ->where('dtr_records.status', $statusFilter);
+                   });
+            }))
+            ->whereYear('dtr_records.log_date', $yearFilter)
+            ->whereMonth('dtr_records.log_date', $monthFilter)
+            ->groupBy('dtr_records.employee_name')
+            ->orderBy('dtr_records.employee_name');
 
         $employees = $employeesQuery->paginate(15)->withQueryString();
 
         // Build records for paginated employees
         $records = collect($employees->items())
-            ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter) {
+            ->mapWithKeys(function ($emp) use ($monthFilter, $yearFilter, $statusFilter, $holidaysInMonth) {
                 $logs = DTRRecord::where('employee_name', $emp->employee_name)
-                    ->when($statusFilter, fn($q) => $q->where('status', $statusFilter))
+                    ->when($statusFilter, fn($q) => $q->whereHas('employeeByName', fn($q2) => $q2->where('status', $statusFilter)))
                     ->whereYear('log_date', $yearFilter)
                     ->whereMonth('log_date', $monthFilter)
                     ->orderBy('log_date')
@@ -564,14 +586,20 @@ class DTRController extends Controller
                             ->values()
                             ->toArray();
 
-                  $structured[$dateStr] = [
-                      'weekday' => $weekday,
-                      'logs' => $dayLogs,
-                      'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                      'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
-                      'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
-                      'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
-                  ];
+                        $holiday = $holidaysInMonth[$dateStr] ?? null;
+
+                        $structured[$dateStr] = [
+                            'weekday' => $weekday,
+                            'logs' => $dayLogs,
+                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                            'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
+                            'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
+                            'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                            'holiday' => $holiday ? [
+                                'name' => $holiday->name,
+                                'type' => $holiday->type,
+                            ] : null,
+                        ];
                     }
 
                     $result[$monthName] = $structured;
@@ -584,7 +612,8 @@ class DTRController extends Controller
         // Calculate stats for the selected month
         $stats = DTRRecord::whereYear('log_date', $yearFilter)
             ->whereMonth('log_date', $monthFilter)
-            ->selectRaw('status, COUNT(DISTINCT employee_name) as count')
+            ->leftJoin('employees', 'employees.name', '=', 'dtr_records.employee_name')
+            ->selectRaw('COALESCE(employees.status, dtr_records.status) as status, COUNT(DISTINCT dtr_records.employee_name) as count')
             ->groupBy('status')
             ->pluck('count', 'status');
 
@@ -621,10 +650,7 @@ class DTRController extends Controller
         $yearMonth = $parsedMonth->format('Y-m');
 
         // Check status for template selection
-        $status = DTRRecord::where('employee_name', $employee)
-            ->whereMonth('log_date', $parsedMonth->month)
-            ->whereYear('log_date', $parsedMonth->year)
-            ->value('status');
+        $status = Employee::where('name', $employee)->value('status');
 
         $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
         $templatePath = storage_path("app/templates/{$templateFile}");
@@ -634,6 +660,7 @@ class DTRController extends Controller
         }
 
         $records = DTRRecord::where('employee_name', $employee)
+            ->when($status, fn($q) => $q->whereHas('employeeByName', fn($q2) => $q2->where('status', $status)))
             ->whereMonth('log_date', $parsedMonth->month)
             ->whereYear('log_date', $parsedMonth->year)
             ->orderBy('log_date')
@@ -646,6 +673,11 @@ class DTRController extends Controller
             ->whereYear('log_date', $parsedMonth->year)
             ->get()
             ->keyBy(fn($br) => Carbon::parse($br->log_date)->format('Y-m-d'));
+
+        $holidaysInMonth = Holiday::whereYear('date', $parsedMonth->year)
+            ->whereMonth('date', $parsedMonth->month)
+            ->get()
+            ->keyBy(fn($h) => Carbon::parse($h->date)->format('Y-m-d'));
 
         $templateProcessor = new TemplateProcessor($templatePath);
 
@@ -669,10 +701,14 @@ class DTRController extends Controller
             $daySchedule = $logs->first()?->schedule_type;
             $travelOrder = $logs->whereNotNull('travel_order')->first()?->travel_order;
 
+            $holiday = $holidaysInMonth[$dateStr] ?? null;
+
             $checkIn = $breakOut = $breakIn = $checkOut = '';
 
             if ($travelOrder) {
                 $checkIn = "TO: " . $travelOrder;
+            } elseif ($holiday) {
+                $checkIn = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
             } else {
                 foreach ($logs as $log) {
                     $timeObj = Carbon::parse($log->log_time);
@@ -709,7 +745,7 @@ class DTRController extends Controller
             $lateMinutes = null;
             $undertimeMinutes = null;
 
-            if (!$travelOrder && $checkIn && $checkOut) {
+            if (!$travelOrder && !$holiday && $checkIn && $checkOut) {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
@@ -985,11 +1021,21 @@ class DTRController extends Controller
         set_time_limit(0); // Increase execution time for large batches
         ini_set('memory_limit', '1024M'); // Increase memory limit for PDF merging
 
-        $employees = DTRRecord::whereYear('log_date', $year)
-            ->whereMonth('log_date', $month)
-            ->where('status', $status)
-            ->distinct('employee_name')
-            ->pluck('employee_name');
+        $employeesQuery = DTRRecord::select('dtr_records.employee_name')
+            ->leftJoin('employees', 'employees.name', '=', 'dtr_records.employee_name')
+            ->when($status, fn($q) => $q->where(function($q2) use ($status) {
+                $q2->where('employees.status', $status)
+                   ->orWhere(function($q3) use ($status) {
+                       $q3->whereNull('employees.id')
+                          ->where('dtr_records.status', $status);
+                   });
+            }))
+            ->whereYear('dtr_records.log_date', $year)
+            ->whereMonth('dtr_records.log_date', $month)
+            ->groupBy('dtr_records.employee_name')
+            ->orderBy('dtr_records.employee_name');
+
+        $employees = $employeesQuery->pluck('employee_name');
 
         if ($employees->isEmpty()) {
             return response()->json(['error' => 'No records found for the selected criteria.'], 404);
@@ -1005,9 +1051,13 @@ class DTRController extends Controller
         $docxFiles = [];
         $monthStr = "{$year}-" . str_pad($month, 2, '0', STR_PAD_LEFT);
         foreach ($employees as $employee) {
-            $docxPath = $this->createDocxFile($employee, $monthStr, $tempDir);
-            if ($docxPath) {
-                $docxFiles[] = $docxPath;
+            try {
+                $docxPath = $this->createDocxFile($employee, $monthStr, $tempDir);
+                if ($docxPath) {
+                    $docxFiles[] = $docxPath;
+                }
+            } catch (\Throwable $e) {
+                logger("Bulk PDF: Failed to generate DOCX for {$employee}: " . $e->getMessage());
             }
         }
 
@@ -1089,63 +1139,79 @@ class DTRController extends Controller
         return response()->download($finalPdfPath)->deleteFileAfterSend(true);
     }
 
-     public function fetchEmployeeDTR($employee, $month, $year, $status = null)
-     {
-         $logs = DTRRecord::where('employee_name', $employee)
-             ->when($status, fn($q) => $q->where('status', $status))
-             ->whereYear('log_date', $year)
-             ->whereMonth('log_date', $month)
-             ->orderBy('log_date')
-             ->orderBy('log_time')
-             ->get()
-             ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
+      public function fetchEmployeeDTR($employee, $month, $year, $status = null)
+      {
+          $query = DTRRecord::where('employee_name', $employee)
+              ->whereYear('log_date', $year)
+              ->whereMonth('log_date', $month)
+              ->orderBy('log_date')
+              ->orderBy('log_time');
 
-         $result = [];
+          if ($status) {
+              $query->whereHas('employeeByName', fn($q2) => $q2->where('status', $status));
+          }
 
-         foreach ($logs as $monthKey => $daysGroup) {
-             $yearNum = (int) substr($monthKey, 0, 4);
-             $monthNum = (int) substr($monthKey, 5, 2);
-             $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
+          $logs = $query->get()
+              ->groupBy(fn($record) => Carbon::parse($record->log_date)->format('Y-m'));
 
-             $structured = [];
-             for ($day = 1; $day <= $daysInMonth; $day++) {
-                 $dateStr = Carbon::create($yearNum, $monthNum, $day)->format('Y-m-d');
-                 $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
+          // Pre-load holidays for the month
+          $holidaysInMonth = Holiday::whereYear('date', $year)
+              ->whereMonth('date', $month)
+              ->get()
+              ->keyBy(fn($h) => Carbon::parse($h->date)->format('Y-m-d'));
 
-                 $dayLogs = $daysGroup->where('log_date', $dateStr)
-                     ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
-                     ->values()
-                     ->toArray();
+          $result = [];
 
-                  $structured[$dateStr] = [
-                      'weekday' => $weekday,
-                      'logs' => $dayLogs,
-                      'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                      'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
-                      'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
-                      'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
-                  ];
-             }
+          foreach ($logs as $monthKey => $daysGroup) {
+              $yearNum = (int) substr($monthKey, 0, 4);
+              $monthNum = (int) substr($monthKey, 5, 2);
+              $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $monthNum, $yearNum);
 
-             $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
-             $result[$monthName] = $structured;
-         }
+              $structured = [];
+              for ($day = 1; $day <= $daysInMonth; $day++) {
+                  $dateStr = Carbon::create($yearNum, $monthNum, $day)->format('Y-m-d');
+                  $weekday = Carbon::create($yearNum, $monthNum, $day)->format('D');
 
-         $breaks = \App\Models\BreakRecord::where('employee_name', $employee)
-             ->whereYear('log_date', $year)
-             ->whereMonth('log_date', $month)
-             ->get()
-             ->map(fn($br) => [
-                 'id' => $br->id,
-                 'log_date' => Carbon::parse($br->log_date)->format('Y-m-d'),
-                 'break_out_time' => $br->break_out_time,
-                 'break_in_time' => $br->break_in_time,
-             ])
-             ->values()
-             ->toArray();
+                  $dayLogs = $daysGroup->where('log_date', $dateStr)
+                      ->map(fn($log) => ['id' => $log->id, 'time' => $log->log_time])
+                      ->values()
+                      ->toArray();
 
-         return response()->json(['records' => $result, 'breaks' => $breaks]);
-     }
+                  $holiday = $holidaysInMonth[$dateStr] ?? null;
+
+                   $structured[$dateStr] = [
+                       'weekday' => $weekday,
+                       'logs' => $dayLogs,
+                       'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                       'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
+                       'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
+                       'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                       'holiday' => $holiday ? [
+                           'name' => $holiday->name,
+                           'type' => $holiday->type,
+                       ] : null,
+                   ];
+              }
+
+              $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
+              $result[$monthName] = $structured;
+          }
+
+          $breaks = \App\Models\BreakRecord::where('employee_name', $employee)
+              ->whereYear('log_date', $year)
+              ->whereMonth('log_date', $month)
+              ->get()
+              ->map(fn($br) => [
+                  'id' => $br->id,
+                  'log_date' => Carbon::parse($br->log_date)->format('Y-m-d'),
+                  'break_out_time' => $br->break_out_time,
+                  'break_in_time' => $br->break_in_time,
+              ])
+              ->values()
+              ->toArray();
+
+          return response()->json(['records' => $result, 'breaks' => $breaks]);
+      }
 
       public function updateLogTime(Request $request)
      {
@@ -1160,83 +1226,94 @@ class DTRController extends Controller
          return response()->json(['status' => 'success']);
      }
 
-     private function calculateAndSaveDailyLateUndertime($employeeName, $logDate)
-     {
-         $logs = DTRRecord::where('employee_name', $employeeName)
-             ->whereDate('log_date', $logDate)
-             ->orderBy('log_time')
-             ->get();
+      private function calculateAndSaveDailyLateUndertime($employeeName, $logDate)
+      {
+          $holiday = $this->isHolidayOrSuspended($logDate);
+          if ($holiday) {
+              DTRRecord::where('employee_name', $employeeName)
+                  ->whereDate('log_date', $logDate)
+                  ->update([
+                      'late_minutes' => null,
+                      'undertime_minutes' => null,
+                  ]);
+              return;
+          }
 
-         $checkIn = null;
-         $checkOut = null;
+          $logs = DTRRecord::where('employee_name', $employeeName)
+              ->whereDate('log_date', $logDate)
+              ->orderBy('log_time')
+              ->get();
 
-         foreach ($logs as $log) {
-             $timeObj = Carbon::parse($log->log_time);
-             $hour = (int) $timeObj->format('H');
-             $time12 = $timeObj->format('g:i');
+          $checkIn = null;
+          $checkOut = null;
 
-             if ($hour >= 5 && $hour <= 11 && empty($checkIn)) {
-                 $checkIn = $time12;
-             } elseif ($hour >= 13 && $hour <= 21) {
-                 $checkOut = $time12;
-             }
-         }
+          foreach ($logs as $log) {
+              $timeObj = Carbon::parse($log->log_time);
+              $hour = (int) $timeObj->format('H');
+              $time12 = $timeObj->format('g:i');
 
-         $lateMinutes = null;
-         $undertimeMinutes = null;
+              if ($hour >= 5 && $hour <= 11 && empty($checkIn)) {
+                  $checkIn = $time12;
+              } elseif ($hour >= 13 && $hour <= 21) {
+                  $checkOut = $time12;
+              }
+          }
 
-         if ($checkIn && $checkOut) {
-             $timeToMins = function ($t, $isPM = false) {
-                 if (!$t) return 0;
-                 $parts = explode(':', $t);
-                 $h = (int) $parts[0];
-                 $m = (int) $parts[1];
-                 if ($isPM && $h < 12) $h += 12;
-                 if (!$isPM && $h == 12) $h = 0;
-                 return ($h * 60) + $m;
-             };
+          $lateMinutes = null;
+          $undertimeMinutes = null;
 
-             $dayOfWeek = Carbon::parse($logDate)->dayOfWeek;
-             if ($logs->first()?->schedule_type === '10HR') {
-                 $schedStartMins = 7 * 60;
-                 $schedEndMins = 18 * 60;
-                 $latestStart = 8 * 60;
-             } elseif ($logs->first()?->schedule_type === '8HR') {
-                 $schedStartMins = 8 * 60;
-                 $schedEndMins = 17 * 60;
-                 $latestStart = 9 * 60;
-             } else {
-                 $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
-                 $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
-                 $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
-                 $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
-             }
+          if ($checkIn && $checkOut) {
+              $timeToMins = function ($t, $isPM = false) {
+                  if (!$t) return 0;
+                  $parts = explode(':', $t);
+                  $h = (int) $parts[0];
+                  $m = (int) $parts[1];
+                  if ($isPM && $h < 12) $h += 12;
+                  if (!$isPM && $h == 12) $h = 0;
+                  return ($h * 60) + $m;
+              };
 
-             $shiftLength = $schedEndMins - $schedStartMins;
-             $inMins = $timeToMins($checkIn, false);
-             $outMins = $timeToMins($checkOut, true);
+              $dayOfWeek = Carbon::parse($logDate)->dayOfWeek;
+              if ($logs->first()?->schedule_type === '10HR') {
+                  $schedStartMins = 7 * 60;
+                  $schedEndMins = 18 * 60;
+                  $latestStart = 8 * 60;
+              } elseif ($logs->first()?->schedule_type === '8HR') {
+                  $schedStartMins = 8 * 60;
+                  $schedEndMins = 17 * 60;
+                  $latestStart = 9 * 60;
+              } else {
+                  $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
+                  $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
+                  $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
+                  $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
+              }
 
-             $late = max(0, $inMins - $latestStart);
-             if ($late > 0) $lateMinutes = $late;
+              $shiftLength = $schedEndMins - $schedStartMins;
+              $inMins = $timeToMins($checkIn, false);
+              $outMins = $timeToMins($checkOut, true);
 
-             $is10Hr = ($logs->first()?->schedule_type === '10HR' || ($logs->first()?->schedule_type !== '8HR' && $dayOfWeek >= 1 && $dayOfWeek <= 4));
-             $earliestStart = $is10Hr ? 420 : 360;
-             $effectiveStartMins = max($earliestStart, $inMins);
+              $late = max(0, $inMins - $latestStart);
+              if ($late > 0) $lateMinutes = $late;
 
-             if ($outMins !== null) {
-                 $requiredEndMins = $effectiveStartMins + $shiftLength;
-                 $under = max(0, $requiredEndMins - $outMins);
-                 if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
-             }
-         }
+              $is10Hr = ($logs->first()?->schedule_type === '10HR' || ($logs->first()?->schedule_type !== '8HR' && $dayOfWeek >= 1 && $dayOfWeek <= 4));
+              $earliestStart = $is10Hr ? 420 : 360;
+              $effectiveStartMins = max($earliestStart, $inMins);
 
-         DTRRecord::where('employee_name', $employeeName)
-             ->whereDate('log_date', $logDate)
-             ->update([
-                 'late_minutes' => $lateMinutes,
-                 'undertime_minutes' => $undertimeMinutes,
-             ]);
-     }
+              if ($outMins !== null) {
+                  $requiredEndMins = $effectiveStartMins + $shiftLength;
+                  $under = max(0, $requiredEndMins - $outMins);
+                  if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+              }
+          }
+
+          DTRRecord::where('employee_name', $employeeName)
+              ->whereDate('log_date', $logDate)
+              ->update([
+                  'late_minutes' => $lateMinutes,
+                  'undertime_minutes' => $undertimeMinutes,
+              ]);
+      }
 
        public function storeLogTime(Request $request)
        {
@@ -1246,9 +1323,7 @@ class DTRController extends Controller
                'log_time' => 'required|date_format:H:i',
            ]);
 
-           $status = DTRRecord::where('employee_name', $validated['employee_name'])
-               ->whereDate('log_date', $validated['log_date'])
-               ->value('status');
+            $status = Employee::where('name', $validated['employee_name'])->value('status') ?: 'REGULAR';
 
            $record = DTRRecord::create([
                'employee_name' => $validated['employee_name'],

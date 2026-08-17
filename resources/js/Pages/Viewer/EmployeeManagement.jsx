@@ -221,7 +221,7 @@ export default function EmployeeManagement({ employees }) {
                 
                 {/* Merge Banner */}
                 {mergeMode && (
-                    <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded mb-6 flex flex-col md:flex-row items-center justify-between gap-4 sticky top-0 z-50">
                         <div className="flex items-center gap-3">
                             <GitMerge className="w-5 h-5 text-blue-600" />
                             <div>

@@ -5,6 +5,7 @@ use App\Http\Controllers\DTRController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\BreakController;
+use App\Http\Controllers\HolidayController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -58,6 +59,13 @@ Route::middleware(['auth', 'verified', 'CheckIfAdmin'])->group(function () {
     Route::post('/admin/breaks', [BreakController::class, 'store'])->name('breaks.store');
     Route::patch('/admin/breaks/{break}', [BreakController::class, 'update'])->name('breaks.update');
     Route::delete('/admin/breaks/{break}', [BreakController::class, 'destroy'])->name('breaks.destroy');
+
+    // Holiday Management
+    Route::get('/admin/holidays', [HolidayController::class, 'index'])->name('holidays.index');
+    Route::post('/admin/holidays', [HolidayController::class, 'store'])->name('holidays.store');
+    Route::get('/admin/holidays/{holiday}', [HolidayController::class, 'show'])->name('holidays.show');
+    Route::patch('/admin/holidays/{holiday}', [HolidayController::class, 'update'])->name('holidays.update');
+    Route::delete('/admin/holidays/{holiday}', [HolidayController::class, 'destroy'])->name('holidays.destroy');
 });
 
 

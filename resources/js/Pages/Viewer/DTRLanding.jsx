@@ -55,61 +55,30 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
     const handleDownload = async (employeeName, month) => {
         const key = `${employeeName}-${month}`;
         setDownloadLoading(prev => ({ ...prev, [key]: true }));
-
         try {
-            const response = await fetch(`/generate-dtr/${encodeURIComponent(employeeName)}/${month}`, {
-                method: 'GET',
-                headers: { 'Accept': 'application/pdf' },
-            });
-            if (!response.ok) throw new Error('Failed to generate PDF');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${employeeName.replace(/ /g, '_')}_DTR_${month}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
+            window.location.href = `/generate-dtr/${encodeURIComponent(employeeName)}/${month}`;
         } catch (error) {
             console.error(error);
             alert('Failed to generate PDF. Please try again.');
         } finally {
-            setDownloadLoading(prev => ({ ...prev, [key]: false }));
+            setTimeout(() => {
+                setDownloadLoading(prev => ({ ...prev, [key]: false }));
+            }, 3000);
         }
     };
 
     const handleDownloadDocx = async (employeeName, month) => {
         const key = `${employeeName}-${month}-docx`;
         setDownloadLoading(prev => ({ ...prev, [key]: true }));
-
         try {
-            const response = await fetch(`/generate-dtr-docx/${encodeURIComponent(employeeName)}/${month}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                },
-            });
-
-            if (!response.ok) throw new Error('Failed to generate DOCX');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${employeeName.replace(/ /g, '_')}_DTR_${month}.docx`;
-            document.body.appendChild(a);
-            a.click();
-
-            window.URL.revokeObjectURL(url);
-            a.remove();
+            window.location.href = `/generate-dtr-docx/${encodeURIComponent(employeeName)}/${month}`;
         } catch (error) {
             console.error(error);
             alert('Failed to generate DOCX. Please try again.');
         } finally {
-            setDownloadLoading(prev => ({ ...prev, [key]: false }));
+            setTimeout(() => {
+                setDownloadLoading(prev => ({ ...prev, [key]: false }));
+            }, 3000);
         }
     };
     const handleBulkDownload = async () => {
