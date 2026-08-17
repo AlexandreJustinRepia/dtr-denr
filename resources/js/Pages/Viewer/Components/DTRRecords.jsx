@@ -281,63 +281,74 @@ export default function DTRRecords({
                                                                      </div>
                                                                  </td>
 
-                                                                {data.travel_order || (editingTO && editingTO.date === date) ? (
-                                                                    <td colSpan="4" className="px-4 py-3 text-center bg-yellow-50/30">
-                                                                        {editingTO && editingTO.date === date ? (
-                                                                            <div className="flex items-center justify-center gap-2">
-                                                                                <span className="text-xs font-bold text-yellow-700">TO:</span>
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="text"
-                                                                                    placeholder="Enter TO Number..."
-                                                                                    value={editingTO.value}
-                                                                                    onChange={(e) => setEditingTO({ ...editingTO, value: e.target.value })}
-                                                                                    onBlur={async () => {
-                                                                                        if (editingTO.value === data.travel_order) {
-                                                                                            setEditingTO(null);
-                                                                                            return;
-                                                                                        }
-                                                                                        const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
-                                                                                        if (success) setEditingTO(null);
-                                                                                    }}
-                                                                                    onKeyDown={async (e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
-                                                                                            if (success) setEditingTO(null);
-                                                                                        }
-                                                                                        if (e.key === 'Escape') setEditingTO(null);
-                                                                                    }}
-                                                                                    className="font-bold text-sm px-3 py-1 rounded border border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none w-48 text-center bg-white shadow-sm"
-                                                                                />
-                                                                                <button 
-                                                                                    onClick={() => setEditingTO(null)}
-                                                                                    className="p-1 hover:bg-yellow-100 rounded text-yellow-700 transition-colors"
-                                                                                    title="Cancel"
-                                                                                >
-                                                                                    <X size={16} />
-                                                                                </button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="flex items-center justify-center gap-2">
-                                                                                <span 
-                                                                                    onClick={() => setEditingTO({ date, value: data.travel_order })}
-                                                                                    className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full text-xs font-bold border border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors uppercase tracking-wider"
-                                                                                >
-                                                                                    <FileText size={14} />
-                                                                                    Travel Order: {data.travel_order}
-                                                                                </span>
-                                                                                <button 
-                                                                                    onClick={() => updateTravelOrder(selectedEmployee, date, null)}
-                                                                                    className="p-1.5 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100"
-                                                                                    title="Remove Travel Order"
-                                                                                >
-                                                                                    <X size={14} />
-                                                                                </button>
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                ) : (
-                                                                    <>
+                                                                 {data.travel_order || (editingTO && editingTO.date === date) ? (
+                                                                     <td colSpan="4" className="px-4 py-3 text-center bg-yellow-50/30">
+                                                                         {editingTO && editingTO.date === date ? (
+                                                                             <div className="flex items-center justify-center gap-2">
+                                                                                 <span className="text-xs font-bold text-yellow-700">TO:</span>
+                                                                                 <input
+                                                                                     autoFocus
+                                                                                     type="text"
+                                                                                     placeholder="Enter TO Number..."
+                                                                                     value={editingTO.value}
+                                                                                     onChange={(e) => setEditingTO({ ...editingTO, value: e.target.value })}
+                                                                                     onBlur={async () => {
+                                                                                         if (editingTO.value === data.travel_order) {
+                                                                                             setEditingTO(null);
+                                                                                             return;
+                                                                                         }
+                                                                                         const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
+                                                                                         if (success) setEditingTO(null);
+                                                                                     }}
+                                                                                     onKeyDown={async (e) => {
+                                                                                         if (e.key === 'Enter') {
+                                                                                             const success = await updateTravelOrder(selectedEmployee, editingTO.date, editingTO.value, data.logs?.length > 0);
+                                                                                             if (success) setEditingTO(null);
+                                                                                         }
+                                                                                         if (e.key === 'Escape') setEditingTO(null);
+                                                                                     }}
+                                                                                     className="font-bold text-sm px-3 py-1 rounded border border-yellow-500 focus:ring-1 focus:ring-yellow-500 outline-none w-48 text-center bg-white shadow-sm"
+                                                                                 />
+                                                                                 <button 
+                                                                                     onClick={() => setEditingTO(null)}
+                                                                                     className="p-1 hover:bg-yellow-100 rounded text-yellow-700 transition-colors"
+                                                                                     title="Cancel"
+                                                                                 >
+                                                                                     <X size={16} />
+                                                                                 </button>
+                                                                             </div>
+                                                                         ) : (
+                                                                             <div className="flex items-center justify-center gap-2">
+                                                                                 <span 
+                                                                                     onClick={() => setEditingTO({ date, value: data.travel_order })}
+                                                                                     className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-1.5 rounded-full text-xs font-bold border border-yellow-200 cursor-pointer hover:bg-yellow-200 transition-colors uppercase tracking-wider"
+                                                                                 >
+                                                                                     <FileText size={14} />
+                                                                                     Travel Order: {data.travel_order}
+                                                                                 </span>
+                                                                                 <button 
+                                                                                     onClick={() => updateTravelOrder(selectedEmployee, date, null)}
+                                                                                     className="p-1.5 hover:bg-red-50 rounded-full text-gray-400 hover:text-red-600 transition-all opacity-0 group-hover:opacity-100"
+                                                                                     title="Remove Travel Order"
+                                                                                 >
+                                                                                     <X size={14} />
+                                                                                 </button>
+                                                                             </div>
+                                                                         )}
+                                                                     </td>
+                                                                 ) : isHoliday ? (
+                                                                     <td colSpan="4" className="px-4 py-3 text-center bg-red-50/60">
+                                                                         <div className="flex flex-col items-center justify-center gap-1">
+                                                                             <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
+                                                                                 {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
+                                                                             </span>
+                                                                             <span className="text-sm font-bold text-red-700 uppercase">
+                                                                                 {data.holiday.name}
+                                                                             </span>
+                                                                         </div>
+                                                                     </td>
+                                                                 ) : (
+                                                                     <>
                                                                         <td className="px-4 py-3 text-center">
                                                                             {editing && editing.id === inTime?.id ? (
                                                                                 <input
@@ -488,12 +499,21 @@ export default function DTRRecords({
                                                                          </td>
                                                                     </>
                                                                 )}
-                                                                <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                                                                    {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
-                                                                    {undertimeMinutes && undertimeMinutes > 0 ? formatMins(undertimeMinutes) : ''}
-                                                                </td>
+                                                                 {isHoliday ? (
+                                                                     <>
+                                                                         <td className="px-4 py-3 text-center text-sm text-gray-400">-</td>
+                                                                         <td className="px-4 py-3 text-center text-sm text-gray-400">-</td>
+                                                                     </>
+                                                                 ) : (
+                                                                     <>
+                                                                         <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                                                                             {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
+                                                                         </td>
+                                                                         <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                                                                             {undertimeMinutes && undertimeMinutes > 0 ? formatMins(undertimeMinutes) : ''}
+                                                                         </td>
+                                                                     </>
+                                                                 )}
                                                             </tr>
                                                         );
                                                     })}

@@ -708,7 +708,8 @@ class DTRController extends Controller
             if ($travelOrder) {
                 $checkIn = "TO: " . $travelOrder;
             } elseif ($holiday) {
-                $checkIn = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                $checkIn = "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel);
             } else {
                 foreach ($logs as $log) {
                     $timeObj = Carbon::parse($log->log_time);
@@ -828,6 +829,12 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bout1#{$day}", "");
                 $templateProcessor->setValue("bin1#{$day}", "");
                 $templateProcessor->setValue("out1#{$day}", "");
+            } elseif ($holiday) {
+                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                $templateProcessor->setValue("in1#{$day}", "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel));
+                $templateProcessor->setValue("bout1#{$day}", "");
+                $templateProcessor->setValue("bin1#{$day}", "");
+                $templateProcessor->setValue("out1#{$day}", "");
             } else {
                 $templateProcessor->setValue("in1#{$day}", $checkIn);
                 $templateProcessor->setValue("bout1#{$day}", $breakOut);
@@ -842,6 +849,12 @@ class DTRController extends Controller
             $templateProcessor->setValue("d2#{$day}", $weekday);
             if ($travelOrder) {
                 $templateProcessor->setValue("in2#{$day}", "MERGE_ROW_2_{$day}_TO_{$travelOrder}");
+                $templateProcessor->setValue("bout2#{$day}", "");
+                $templateProcessor->setValue("bin2#{$day}", "");
+                $templateProcessor->setValue("out2#{$day}", "");
+            } elseif ($holiday) {
+                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                $templateProcessor->setValue("in2#{$day}", "MERGE_ROW_2_{$day}_HOLIDAY_" . rawurlencode($holidayLabel));
                 $templateProcessor->setValue("bout2#{$day}", "");
                 $templateProcessor->setValue("bin2#{$day}", "");
                 $templateProcessor->setValue("out2#{$day}", "");
@@ -876,9 +889,6 @@ class DTRController extends Controller
         if ($zip->open($path) === TRUE) {
             $xml = $zip->getFromName('word/document.xml');
 
-            // Find rows with our markers and merge the 4 cells
-            // The marker is inside the first <w:tc> of the group.
-            // We replace that <w:tc> and the next 3 <w:tc> siblings.
             $xml = preg_replace_callback('/<w:tc[^>]*>(?:(?!<\/w:tc>).)*MERGE_ROW_(\d+)_(\d+)_TO_([^<]+).*?<\/w:tc>(?:\s*<w:tc[^>]*>(?:(?!<\/w:tc>).)*<\/w:tc>){3}/s', function ($matches) {
                 $toValue = $matches[3];
                 return '<w:tc>
@@ -897,6 +907,29 @@ class DTRController extends Controller
                                 <w:szCs w:val="18"/>
                             </w:rPr>
                             <w:t>TO: ' . htmlspecialchars($toValue) . '</w:t>
+                        </w:r>
+                    </w:p>
+                </w:tc>';
+            }, $xml);
+
+            $xml = preg_replace_callback('/<w:tc[^>]*>(?:(?!<\/w:tc>).)*MERGE_ROW_(\d+)_(\d+)_HOLIDAY_([^<]+).*?<\/w:tc>(?:\s*<w:tc[^>]*>(?:(?!<\/w:tc>).)*<\/w:tc>){3}/s', function ($matches) {
+                $holidayLabel = rawurldecode($matches[3]);
+                return '<w:tc>
+                    <w:tcPr>
+                        <w:gridSpan w:val="4"/>
+                        <w:vAlign w:val="center"/>
+                    </w:tcPr>
+                    <w:p>
+                        <w:pPr>
+                            <w:jc w:val="center"/>
+                        </w:pPr>
+                        <w:r>
+                            <w:rPr>
+                                <w:b/>
+                                <w:sz w:val="18"/>
+                                <w:szCs w:val="18"/>
+                            </w:rPr>
+                            <w:t>' . htmlspecialchars($holidayLabel) . '</w:t>
                         </w:r>
                     </w:p>
                 </w:tc>';
