@@ -501,6 +501,26 @@ class DTRController extends Controller
         return $holiday;
     }
 
+    private function isHolidayWeek($dateStr)
+    {
+        $date = Carbon::parse($dateStr);
+        $friday = $date->copy()->startOfWeek(Carbon::MONDAY)->addDays(4);
+        return Holiday::where('date', $friday->format('Y-m-d'))->exists();
+    }
+
+    private function getEffectiveScheduleType($dateStr, $storedScheduleType)
+    {
+        if ($storedScheduleType) {
+            return $storedScheduleType;
+        }
+
+        if ($this->isHolidayWeek($dateStr)) {
+            return '8HR_FLEXI';
+        }
+
+        return null;
+    }
+
     // Viewer landing page
     public function view()
     {
@@ -587,11 +607,13 @@ class DTRController extends Controller
                             ->toArray();
 
                         $holiday = $holidaysInMonth[$dateStr] ?? null;
+                        $dayScheduleType = $daysGroup->where('log_date', $dateStr)->first()?->schedule_type;
+                        $effectiveScheduleType = $this->getEffectiveScheduleType($dateStr, $dayScheduleType);
 
                         $structured[$dateStr] = [
                             'weekday' => $weekday,
                             'logs' => $dayLogs,
-                            'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
+                            'schedule_type' => $effectiveScheduleType,
                             'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
                             'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
                             'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
@@ -700,6 +722,9 @@ class DTRController extends Controller
 
             // Handle per-day schedule toggle and Travel Order
             $daySchedule = $logs->first()?->schedule_type;
+            if (!$daySchedule && $this->isHolidayWeek($dateStr)) {
+                $daySchedule = '8HR_FLEXI';
+            }
             $travelOrder = $logs->whereNotNull('travel_order')->first()?->travel_order;
 
             $holiday = $holidaysInMonth[$dateStr] ?? null;
@@ -779,6 +804,10 @@ class DTRController extends Controller
                     $schedStartMins = 8 * 60;
                     $schedEndMins = 17 * 60;
                     $latestStart = 9 * 60; // 9:00 AM
+                } elseif ($daySchedule === '8HR_FLEXI') {
+                    $schedStartMins = 7 * 60;
+                    $schedEndMins = 17 * 60;
+                    $latestStart = 8 * 60; // 8:00 AM
                 } else {
                     $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
                     $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
@@ -798,13 +827,17 @@ class DTRController extends Controller
                         $lateMinutes = $late;
 
                     // 2. Calculate Effective Start for Duration
-                    $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
+                    $is10Hr = ($daySchedule === '10HR' || (!in_array($daySchedule, ['10HR', '8HR', '8HR_FLEXI']) && ($dayOfWeek >= 1 && $dayOfWeek <= 4)));
                     $earliestStart = $is10Hr ? 420 : 360; // 10H = 7AM, 8H = 6AM
                     $effectiveStartMins = max($earliestStart, $inMins);
 
                     // 3. Calculate Undertime (must fulfill total shift duration)
                     if ($outMins !== null) {
-                        $requiredEndMins = $effectiveStartMins + $shiftLength;
+                        if ($daySchedule === '8HR_FLEXI') {
+                            $requiredEndMins = $inMins + 540; // check-in + 9 hours (8 work + 1 lunch)
+                        } else {
+                            $requiredEndMins = $effectiveStartMins + $shiftLength;
+                        }
                         $under = max(0, $requiredEndMins - $outMins);
                         if ($under > 0)
                             $lateMinutes = ($lateMinutes ?? 0) + $under;
@@ -1272,21 +1305,23 @@ class DTRController extends Controller
                       ->values()
                       ->toArray();
 
-                  $holiday = $holidaysInMonth[$dateStr] ?? null;
+                   $holiday = $holidaysInMonth[$dateStr] ?? null;
+                   $dayScheduleType = $daysGroup->where('log_date', $dateStr)->first()?->schedule_type;
+                   $effectiveScheduleType = $this->getEffectiveScheduleType($dateStr, $dayScheduleType);
 
-                    $structured[$dateStr] = [
-                        'weekday' => $weekday,
-                        'logs' => $dayLogs,
-                        'schedule_type' => $daysGroup->where('log_date', $dateStr)->first()?->schedule_type,
-                        'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
-                        'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
-                        'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
-                        'holiday' => $holiday ? [
-                            'name' => $holiday->name,
-                            'type' => $holiday->type,
-                            'suspension_start_time' => $holiday->suspension_start_time ? Carbon::parse($holiday->suspension_start_time)->format('g:i A') : null,
-                        ] : null,
-                    ];
+                     $structured[$dateStr] = [
+                         'weekday' => $weekday,
+                         'logs' => $dayLogs,
+                         'schedule_type' => $effectiveScheduleType,
+                         'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
+                         'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
+                         'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                         'holiday' => $holiday ? [
+                             'name' => $holiday->name,
+                             'type' => $holiday->type,
+                             'suspension_start_time' => $holiday->suspension_start_time ? Carbon::parse($holiday->suspension_start_time)->format('g:i A') : null,
+                         ] : null,
+                     ];
               }
 
               $monthName = Carbon::create($yearNum, $monthNum, 1)->format('F Y');
@@ -1392,73 +1427,86 @@ class DTRController extends Controller
                return;
            }
 
-           $logs = DTRRecord::where('employee_name', $employeeName)
-               ->whereDate('log_date', $logDate)
-               ->orderBy('log_time')
-               ->get();
+            $logs = DTRRecord::where('employee_name', $employeeName)
+                ->whereDate('log_date', $logDate)
+                ->orderBy('log_time')
+                ->get();
 
-           $checkIn = null;
-           $checkOut = null;
+            $checkIn = null;
+            $checkOut = null;
 
-           foreach ($logs as $log) {
-               $timeObj = Carbon::parse($log->log_time);
-               $hour = (int) $timeObj->format('H');
-               $time12 = $timeObj->format('g:i');
+            foreach ($logs as $log) {
+                $timeObj = Carbon::parse($log->log_time);
+                $hour = (int) $timeObj->format('H');
+                $time12 = $timeObj->format('g:i');
 
-               if ($hour >= 5 && $hour <= 11 && empty($checkIn)) {
-                   $checkIn = $time12;
-               } elseif ($hour >= 13 && $hour <= 21) {
-                   $checkOut = $time12;
-               }
-           }
+                if ($hour >= 5 && $hour <= 11 && empty($checkIn)) {
+                    $checkIn = $time12;
+                } elseif ($hour >= 13 && $hour <= 21) {
+                    $checkOut = $time12;
+                }
+            }
 
-           $lateMinutes = null;
-           $undertimeMinutes = null;
+            $lateMinutes = null;
+            $undertimeMinutes = null;
 
-           if ($checkIn && $checkOut) {
-               $timeToMins = function ($t, $isPM = false) {
-                   if (!$t) return 0;
-                   $parts = explode(':', $t);
-                   $h = (int) $parts[0];
-                   $m = (int) $parts[1];
-                   if ($isPM && $h < 12) $h += 12;
-                   if (!$isPM && $h == 12) $h = 0;
-                   return ($h * 60) + $m;
-               };
+            if ($checkIn && $checkOut) {
+                $timeToMins = function ($t, $isPM = false) {
+                    if (!$t) return 0;
+                    $parts = explode(':', $t);
+                    $h = (int) $parts[0];
+                    $m = (int) $parts[1];
+                    if ($isPM && $h < 12) $h += 12;
+                    if (!$isPM && $h == 12) $h = 0;
+                    return ($h * 60) + $m;
+                };
 
-               $dayOfWeek = Carbon::parse($logDate)->dayOfWeek;
-               if ($logs->first()?->schedule_type === '10HR') {
-                   $schedStartMins = 7 * 60;
-                   $schedEndMins = 18 * 60;
-                   $latestStart = 8 * 60;
-               } elseif ($logs->first()?->schedule_type === '8HR') {
-                   $schedStartMins = 8 * 60;
-                   $schedEndMins = 17 * 60;
-                   $latestStart = 9 * 60;
-               } else {
-                   $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
-                   $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
-                   $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
-                   $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
-               }
+                $dayOfWeek = Carbon::parse($logDate)->dayOfWeek;
+                $daySchedule = $logs->first()?->schedule_type;
+                if (!$daySchedule && $this->isHolidayWeek($logDate)) {
+                    $daySchedule = '8HR_FLEXI';
+                }
 
-               $shiftLength = $schedEndMins - $schedStartMins;
-               $inMins = $timeToMins($checkIn, false);
-               $outMins = $timeToMins($checkOut, true);
+                if ($daySchedule === '10HR') {
+                    $schedStartMins = 7 * 60;
+                    $schedEndMins = 18 * 60;
+                    $latestStart = 8 * 60;
+                } elseif ($daySchedule === '8HR') {
+                    $schedStartMins = 8 * 60;
+                    $schedEndMins = 17 * 60;
+                    $latestStart = 9 * 60;
+                } elseif ($daySchedule === '8HR_FLEXI') {
+                    $schedStartMins = 7 * 60;
+                    $schedEndMins = 17 * 60;
+                    $latestStart = 8 * 60;
+                } else {
+                    $is10Hr = ($dayOfWeek >= 1 && $dayOfWeek <= 4);
+                    $schedStartMins = $is10Hr ? (7 * 60) : (8 * 60);
+                    $schedEndMins = $is10Hr ? (18 * 60) : (17 * 60);
+                    $latestStart = $is10Hr ? (8 * 60) : (9 * 60);
+                }
 
-               $late = max(0, $inMins - $latestStart);
-               if ($late > 0) $lateMinutes = $late;
+                $shiftLength = $schedEndMins - $schedStartMins;
+                $inMins = $timeToMins($checkIn, false);
+                $outMins = $timeToMins($checkOut, true);
 
-               $is10Hr = ($logs->first()?->schedule_type === '10HR' || ($logs->first()?->schedule_type !== '8HR' && $dayOfWeek >= 1 && $dayOfWeek <= 4));
-               $earliestStart = $is10Hr ? 420 : 360;
-               $effectiveStartMins = max($earliestStart, $inMins);
+                $late = max(0, $inMins - $latestStart);
+                if ($late > 0) $lateMinutes = $late;
 
-               if ($outMins !== null) {
-                   $requiredEndMins = $effectiveStartMins + $shiftLength;
-                   $under = max(0, $requiredEndMins - $outMins);
-                   if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
-               }
-           }
+                $is10Hr = ($daySchedule === '10HR' || ($daySchedule === '8HR_FLEXI') || (!in_array($daySchedule, ['10HR', '8HR', '8HR_FLEXI']) && $dayOfWeek >= 1 && $dayOfWeek <= 4));
+                $earliestStart = $is10Hr ? 420 : 360;
+                $effectiveStartMins = max($earliestStart, $inMins);
+
+                if ($outMins !== null) {
+                    if ($daySchedule === '8HR_FLEXI') {
+                        $requiredEndMins = $inMins + 540; // 9 hours from check-in (8 work + 1 lunch)
+                    } else {
+                        $requiredEndMins = $effectiveStartMins + $shiftLength;
+                    }
+                    $under = max(0, $requiredEndMins - $outMins);
+                    if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+                }
+            }
 
            DTRRecord::where('employee_name', $employeeName)
                ->whereDate('log_date', $logDate)

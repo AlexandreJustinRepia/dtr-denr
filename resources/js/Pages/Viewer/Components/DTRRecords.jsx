@@ -5,6 +5,7 @@ import { Download, Clock, Loader2, User, FileText, Calendar, CheckCircle2, Trash
 const getScheduledTimes = (date, override = null) => {
     if (override === '10HR') return { start: "07:00", end: "18:00", latest: "08:00" };
     if (override === '8HR') return { start: "08:00", end: "17:00", latest: "09:00" };
+    if (override === '8HR_FLEXI') return { start: "07:00", end: "17:00", latest: "08:00" };
 
     const day = new Date(date).getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
     // 10‑hour shift Monday‑Thursday
@@ -208,26 +209,31 @@ export default function DTRRecords({
                                                                       return h * 60 + m;
                                                                   };
 
-                                                                  const inMins = actualIn ? timeToMins(actualIn) : null;
-                                                                  const outMins = actualOut ? timeToMins(actualOut) : null;
-                                                                  const schedStartMins = timeToMins(scheduled.start);
-                                                                  const schedEndMins = timeToMins(scheduled.end);
-                                                                  const latestStartMins = timeToMins(scheduled.latest);
-                                                                  const shiftLength = schedEndMins - schedStartMins;
+                                                                   const inMins = actualIn ? timeToMins(actualIn) : null;
+                                                                   const outMins = actualOut ? timeToMins(actualOut) : null;
+                                                                   const schedStartMins = timeToMins(scheduled.start);
+                                                                   const schedEndMins = timeToMins(scheduled.end);
+                                                                   const latestStartMins = timeToMins(scheduled.latest);
+                                                                   const shiftLength = schedEndMins - schedStartMins;
 
-                                                                  if (inMins !== null && outMins !== null && !data.holiday) {
-                                                                      const late = Math.max(0, inMins - latestStartMins);
-                                                                      if (late > 0) lateMinutes = late;
+                                                                   if (inMins !== null && outMins !== null && !data.holiday) {
+                                                                       const late = Math.max(0, inMins - latestStartMins);
+                                                                       if (late > 0) lateMinutes = late;
 
-                                                                      const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
-                                                                      const effectiveStartMins = Math.max(earliestStart, inMins);
+                                                                       const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
+                                                                       const effectiveStartMins = Math.max(earliestStart, inMins);
 
-                                                                      const requiredEndMins = effectiveStartMins + shiftLength;
-                                                                      const undertime = Math.max(0, requiredEndMins - outMins);
-                                                                      if (undertime > 0) {
-                                                                          lateMinutes = (lateMinutes || 0) + undertime;
-                                                                      }
-                                                                  }
+                                                                       let requiredEndMins;
+                                                                       if (data.schedule_type === '8HR_FLEXI') {
+                                                                           requiredEndMins = inMins + 540; // 9 hours from check-in
+                                                                       } else {
+                                                                           requiredEndMins = effectiveStartMins + shiftLength;
+                                                                       }
+                                                                       const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                       if (undertime > 0) {
+                                                                           lateMinutes = (lateMinutes || 0) + undertime;
+                                                                       }
+                                                                   }
                                                               }
                                                           }
 
@@ -241,22 +247,24 @@ export default function DTRRecords({
                                                                          <div className="flex flex-col">
                                                                              <span className={`text-xs font-medium group-hover:text-green-700 transition-colors ${isHoliday ? 'text-red-600 font-bold' : 'text-gray-500'}`}>{data.weekday}</span>
                                                                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                                                                 <button 
-                                                                                     onClick={() => isHoliday ? null : updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
-                                                                                     title={isHoliday ? "Cannot change schedule on holidays" : "Change Schedule"}
-                                                                                     disabled={isHoliday}
-                                                                                     className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors w-fit ${
-                                                                                         isHoliday
-                                                                                             ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                                                                             : data.schedule_type === '10HR' 
-                                                                                                 ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
-                                                                                                 : data.schedule_type === '8HR'
-                                                                                                     ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                                                                                     : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                                                                     }`}
-                                                                                 >
-                                                                                     {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : 'Auto'}
-                                                                                 </button>
+                                                                                  <button 
+                                                                                      onClick={() => isHoliday ? null : updateSchedule(selectedEmployee, date, data.schedule_type === '10HR' ? '8HR' : '10HR')}
+                                                                                      title={isHoliday ? "Cannot change schedule on holidays" : "Change Schedule"}
+                                                                                      disabled={isHoliday}
+                                                                                      className={`text-[10px] font-medium px-1.5 py-0.5 rounded border transition-colors w-fit ${
+                                                                                          isHoliday
+                                                                                              ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                                                              : data.schedule_type === '10HR' 
+                                                                                                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                                                                                  : data.schedule_type === '8HR'
+                                                                                                      ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                                                                      : data.schedule_type === '8HR_FLEXI'
+                                                                                                          ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                                                                                                          : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                                                      }`}
+                                                                                  >
+                                                                                      {data.schedule_type === '10HR' ? '10H' : data.schedule_type === '8HR' ? '8H' : data.schedule_type === '8HR_FLEXI' ? 'Flexi' : 'Auto'}
+                                                                                  </button>
                                                                                  {!data.travel_order && isHoliday && (
                                                                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border bg-red-100 text-red-700 border-red-200 uppercase tracking-wider">
                                                                                          {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}

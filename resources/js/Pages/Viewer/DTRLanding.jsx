@@ -362,32 +362,36 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-6 py-8 relative z-20">
-                <SearchFilters
-                    search={search} setSearch={setSearch}
-                    filterMonth={filterMonth} setFilterMonth={setFilterMonth}
-                    filterYear={filterYear} setFilterYear={setFilterYear}
-                    availableDates={availableDates}
-                    handleKeyDown={handleKeyDown} handleSearch={handleSearch} handleReset={handleReset}
-                    selectedEmployee={selectedEmployee} performRequest={performRequest}
-                    status={status} setStatus={setStatus} loadingEmployees={loadingEmployees}
-                    handleBulkDownload={handleBulkDownload}
-                    downloadLoading={downloadLoading}
-                />
+                <div className="lg:sticky lg:top-0 z-40">
+                    <SearchFilters
+                        search={search} setSearch={setSearch}
+                        filterMonth={filterMonth} setFilterMonth={setFilterMonth}
+                        filterYear={filterYear} setFilterYear={setFilterYear}
+                        availableDates={availableDates}
+                        handleKeyDown={handleKeyDown} handleSearch={handleSearch} handleReset={handleReset}
+                        selectedEmployee={selectedEmployee} performRequest={performRequest}
+                        status={status} setStatus={setStatus} loadingEmployees={loadingEmployees}
+                        handleBulkDownload={handleBulkDownload}
+                        downloadLoading={downloadLoading}
+                    />
+                </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
                     <div className="lg:col-span-4 lg:border-r border-gray-200 lg:pr-6">
-                        <EmployeeList
-                            employeeList={employeeList}
-                            selectedEmployee={selectedEmployee}
-                            setSelectedEmployee={handleEmployeeSelect}
-                            employees={employees}
-                            search={search}
-                            filterMonth={filterMonth}
-                            filterYear={filterYear}
-                            router={router}
-                            status={status}
-                            loadingEmployees={loadingEmployees}
-                        />
+                        <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+                            <EmployeeList
+                                employeeList={employeeList}
+                                selectedEmployee={selectedEmployee}
+                                setSelectedEmployee={handleEmployeeSelect}
+                                employees={employees}
+                                search={search}
+                                filterMonth={filterMonth}
+                                filterYear={filterYear}
+                                router={router}
+                                status={status}
+                                loadingEmployees={loadingEmployees}
+                            />
+                        </div>
                     </div>
 
                     <div className="lg:col-span-8">
