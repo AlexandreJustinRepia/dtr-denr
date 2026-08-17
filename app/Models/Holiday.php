@@ -15,9 +15,11 @@ class Holiday extends Model
         'date',
         'name',
         'type',
+        'suspension_start_time',
     ];
 
     protected $casts = [
         'date' => 'date',
+        'suspension_start_time' => 'datetime:H:i',
     ];
 }

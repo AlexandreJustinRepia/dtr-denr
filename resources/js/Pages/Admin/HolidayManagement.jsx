@@ -31,6 +31,7 @@ export default function HolidayManagement({ holidays, filters }) {
         date: '',
         name: '',
         type: 'holiday',
+        suspension_start_time: '',
     });
 
     const showSuccess = (message) => {
@@ -319,6 +320,19 @@ export default function HolidayManagement({ holidays, filters }) {
                                 <option value="suspended">Suspended Day</option>
                             </select>
                             {errors.type && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.type[0]}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Late Suspension Start Time (optional)</label>
+                            <input
+                                type="time"
+                                value={form.suspension_start_time}
+                                onChange={e => setForm({...form, suspension_start_time: e.target.value})}
+                                className={`w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 ${errors.suspension_start_time ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="e.g. 15:00 for 3:00 PM"
+                            />
+                            {errors.suspension_start_time && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.suspension_start_time[0]}</p>}
+                            <p className="text-[10px] text-gray-400 mt-1 font-medium">If set, late/undertime will still be calculated up to this time.</p>
                         </div>
 
                         <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">

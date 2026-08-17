@@ -336,18 +336,23 @@ export default function DTRRecords({
                                                                              </div>
                                                                          )}
                                                                      </td>
-                                                                 ) : isHoliday ? (
-                                                                     <td colSpan="4" className="px-4 py-3 text-center bg-red-50/60">
-                                                                         <div className="flex flex-col items-center justify-center gap-1">
-                                                                             <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
-                                                                                 {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
-                                                                             </span>
-                                                                             <span className="text-sm font-bold text-red-700 uppercase">
-                                                                                 {data.holiday.name}
-                                                                             </span>
-                                                                         </div>
-                                                                     </td>
-                                                                 ) : (
+                                                                  ) : isHoliday ? (
+                                                                      <td colSpan="4" className="px-4 py-3 text-center bg-red-50/60">
+                                                                          <div className="flex flex-col items-center justify-center gap-1">
+                                                                              <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
+                                                                                  {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
+                                                                              </span>
+                                                                              <span className="text-sm font-bold text-red-700 uppercase">
+                                                                                  {data.holiday.name}
+                                                                              </span>
+                                                                              {data.holiday.suspension_start_time && (
+                                                                                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-100 px-2 py-0.5 rounded border border-red-200">
+                                                                                      Suspended from {data.holiday.suspension_start_time}
+                                                                                  </span>
+                                                                              )}
+                                                                          </div>
+                                                                      </td>
+                                                                  ) : (
                                                                      <>
                                                                         <td className="px-4 py-3 text-center">
                                                                             {editing && editing.id === inTime?.id ? (

@@ -30,6 +30,7 @@ class HolidayController extends Controller
             'date' => 'required|date|unique:holidays,date',
             'name' => 'required|string|max:255',
             'type' => 'required|in:holiday,suspended',
+            'suspension_start_time' => 'nullable|date_format:H:i',
         ]);
 
         $holiday = Holiday::create($validated);
@@ -48,6 +49,7 @@ class HolidayController extends Controller
             'date' => 'required|date|unique:holidays,date,' . $holiday->id,
             'name' => 'required|string|max:255',
             'type' => 'required|in:holiday,suspended',
+            'suspension_start_time' => 'nullable|date_format:H:i',
         ]);
 
         $holiday->update($validated);
