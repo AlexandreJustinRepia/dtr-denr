@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { format } from 'date-fns';
-import { FileText, Calendar, Hash, RefreshCw, Loader2, History } from 'lucide-react';
+import { FileText, Calendar, Hash, RefreshCw, Loader2, History, Trash2 } from 'lucide-react';
 
 export default function DtrHistory({ onReprocess, refreshSignal }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this batch and all its records?')) return;
+    try {
+      await axios.delete(`/admin/dtr/batch/${id}`);
+      setHistory(prev => prev.filter(b => b.id !== id));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete batch');
+    }
+  };
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -84,12 +94,20 @@ export default function DtrHistory({ onReprocess, refreshSignal }) {
               </div>
             </div>
 
-            <button
-              onClick={() => onReprocess(batch.id)}
-              className="bg-white p-3 rounded-2xl text-gray-400 hover:text-green-600 shadow-sm hover:shadow-lg hover:shadow-green-600/10 transition-all active:scale-95 group-hover:translate-x-1"
-            >
-              <RefreshCw size={14} />
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onReprocess(batch.id)}
+                className="bg-white p-3 rounded-2xl text-gray-400 hover:text-green-600 shadow-sm hover:shadow-lg hover:shadow-green-600/10 transition-all active:scale-95 group-hover:translate-x-1"
+              >
+                <RefreshCw size={14} />
+              </button>
+              <button
+                onClick={() => handleDelete(batch.id)}
+                className="bg-white p-3 rounded-2xl text-gray-400 hover:text-red-600 shadow-sm hover:shadow-lg hover:shadow-red-600/10 transition-all active:scale-95"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
         </div>
       ))}

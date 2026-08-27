@@ -51,6 +51,7 @@ export default function DTRRecords({
     const [editing, setEditing] = useState(null); // { id, value, type, date }
     const [breakEditing, setBreakEditing] = useState(null); // { date, field, value }
     const [checkoutEditing, setCheckoutEditing] = useState(null); // { date, value }
+    const [checkinEditing, setCheckinEditing] = useState(null); // { date, value }
 
     const manualBreaksByDate = useMemo(() => {
         const map = {};
@@ -353,37 +354,60 @@ export default function DTRRecords({
                                                                       </td>
                                                                   ) : (
                                                                      <>
-                                                                        <td className="px-4 py-3 text-center">
-                                                                            {editing && editing.id === inTime?.id ? (
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="time"
-                                                                                    value={editing.value}
-                                                                                    onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                                                                                    onBlur={() => {
-                                                                                        updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                        setEditing(null);
-                                                                                    }}
-                                                                                    onKeyDown={(e) => {
-                                                                                        if (e.key === 'Enter') {
-                                                                                            updateLogTime(editing.id, editing.value, selectedEmployee);
-                                                                                            setEditing(null);
-                                                                                        }
-                                                                                        if (e.key === 'Escape') setEditing(null);
-                                                                                    }}
-                                                                                    className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
-                                                                                />
-                                                                            ) : (
-                                                                                <span 
-                                                                                    onClick={() => {
-                                                                                        if (inTime) setEditing({ id: inTime.id, value: inTime.time });
-                                                                                        else setEditingTO({ date, value: '' });
-                                                                                    }}
-                                                                                    className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-300 hover:text-gray-500'}`}>
-                                                                                    {format12Hour(inTime) || '--:--'}
-                                                                                </span>
-                                                                            )}
-                                                                        </td>
+                                                                         <td className="px-4 py-3 text-center">
+                                                                             {checkinEditing && checkinEditing.date === date ? (
+                                                                                 <input
+                                                                                     autoFocus
+                                                                                     type="time"
+                                                                                     value={checkinEditing.value}
+                                                                                     onChange={(e) => setCheckinEditing({ ...checkinEditing, value: e.target.value })}
+                                                                                     onBlur={() => {
+                                                                                         if (checkinEditing.value) {
+                                                                                             createLogTime(selectedEmployee, date, checkinEditing.value, 'in');
+                                                                                         }
+                                                                                         setCheckinEditing(null);
+                                                                                     }}
+                                                                                     onKeyDown={(e) => {
+                                                                                         if (e.key === 'Enter') {
+                                                                                             if (checkinEditing.value) {
+                                                                                                 createLogTime(selectedEmployee, date, checkinEditing.value, 'in');
+                                                                                             }
+                                                                                             setCheckinEditing(null);
+                                                                                         }
+                                                                                         if (e.key === 'Escape') setCheckinEditing(null);
+                                                                                     }}
+                                                                                     className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
+                                                                                 />
+                                                                             ) : editing && editing.id === inTime?.id ? (
+                                                                                 <input
+                                                                                     autoFocus
+                                                                                     type="time"
+                                                                                     value={editing.value}
+                                                                                     onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                     onBlur={() => {
+                                                                                         updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                         setEditing(null);
+                                                                                     }}
+                                                                                     onKeyDown={(e) => {
+                                                                                         if (e.key === 'Enter') {
+                                                                                             updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                             setEditing(null);
+                                                                                         }
+                                                                                         if (e.key === 'Escape') setEditing(null);
+                                                                                     }}
+                                                                                     className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
+                                                                                 />
+                                                                             ) : (
+                                                                                 <span 
+                                                                                     onClick={() => {
+                                                                                         if (inTime) setEditing({ id: inTime.id, value: inTime.time });
+                                                                                         else setCheckinEditing({ date, value: '' });
+                                                                                     }}
+                                                                                     className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-300 hover:text-gray-500'}`}>
+                                                                                     {format12Hour(inTime) || '--:--'}
+                                                                                 </span>
+                                                                             )}
+                                                                         </td>
                                                                           <td className="px-4 py-3 text-center">
                                                                               {breakEditing && breakEditing.date === date && breakEditing.field === 'break_out_time' ? (
                                                                                   <input

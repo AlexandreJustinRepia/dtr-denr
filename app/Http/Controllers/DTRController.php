@@ -265,7 +265,7 @@ class DTRController extends Controller
             if ($useStrictStatus) {
                 $isCheckIn = $statusStr ? (str_contains($statusStr, 'check in') || str_contains($statusStr, 'c/in') || $statusStr === 'in') : ($hour >= 5 && $hour <= 11);
                 $isCheckOut = $statusStr ? (str_contains($statusStr, 'check out') || str_contains($statusStr, 'c/out') || $statusStr === 'out') : ($hour >= 13 && $hour <= 21);
-                $isBreakOut = $statusStr ? str_contains($statusStr, 'break out') : ($hour == 12);
+                $isBreakOut = $statusStr ? str_contains($statusStr, 'break out') : ($hour >= 12 && $hour < 13);
                 $isBreakIn = $statusStr ? str_contains($statusStr, 'break in') : false;
 
                 $isValid = false;
@@ -273,7 +273,7 @@ class DTRController extends Controller
                     if ($hour >= 5 && $hour <= 11)
                         $isValid = true;
                 } elseif ($isBreakOut || $isBreakIn) {
-                    if ($hour == 12)
+                    if ($hour >= 12 && $hour < 13)
                         $isValid = true;
                 } elseif ($isCheckOut) {
                     if ($hour >= 13 && $hour <= 21)
@@ -281,10 +281,16 @@ class DTRController extends Controller
                 }
 
                 if (!$isValid) {
-                    continue;
-                }
-
-                if ($isCheckIn)
+                    $type = 'legacy';
+                    if ($hour >= 5 && $hour <= 11)
+                        $type = 'in';
+                    elseif ($hour >= 12 && $hour < 13)
+                        $type = 'bout';
+                    elseif ($hour >= 13 && $hour <= 21)
+                        $type = 'out';
+                    else
+                        continue;
+                } elseif ($isCheckIn)
                     $type = 'in';
                 elseif ($isBreakOut)
                     $type = 'bout';
@@ -357,8 +363,8 @@ class DTRController extends Controller
                         if ($hour >= 5 && $hour <= 11) {
                             $checkIn = $time;
                         }
-                        // Break: 12PM
-                        elseif ($hour == 12) {
+                        // Break: 12PM - 12:59PM
+                        elseif ($hour >= 12 && $hour < 13) {
                             if (!$breakOut) {
                                 $breakOut = $time;
                             } else {
@@ -482,7 +488,8 @@ class DTRController extends Controller
     public function deleteBatch($id)
     {
         $batch = DTRBatch::findOrFail($id);
-        $batch->delete(); // This will trigger cascade delete on dtr_records
+        $batch->dtrRecords()->delete();
+        $batch->delete();
         return response()->json(['success' => true]);
     }
 
@@ -1526,28 +1533,29 @@ class DTRController extends Controller
            return ($h * 60) + $m;
        }
 
-       public function storeLogTime(Request $request)
-       {
-           $validated = $request->validate([
-               'employee_name' => 'required|string|max:255',
-               'log_date' => 'required|date',
-               'log_time' => 'required|date_format:H:i',
-           ]);
+        public function storeLogTime(Request $request)
+        {
+            $validated = $request->validate([
+                'employee_name' => 'required|string|max:255',
+                'log_date' => 'required|date',
+                'log_time' => 'required|date_format:H:i',
+                'log_type' => 'nullable|string|in:in,out',
+            ]);
 
-            $status = Employee::where('name', $validated['employee_name'])->value('status') ?: 'REGULAR';
+             $status = Employee::where('name', $validated['employee_name'])->value('status') ?: 'REGULAR';
 
-           $record = DTRRecord::create([
-               'employee_name' => $validated['employee_name'],
-               'log_date' => $validated['log_date'],
-               'log_time' => $validated['log_time'],
-               'log_type' => 'out',
-               'status' => $status ?: 'REGULAR',
-           ]);
+            $record = DTRRecord::create([
+                'employee_name' => $validated['employee_name'],
+                'log_date' => $validated['log_date'],
+                'log_time' => $validated['log_time'],
+                'log_type' => $validated['log_type'] ?? 'out',
+                'status' => $status ?: 'REGULAR',
+            ]);
 
-           $this->calculateAndSaveDailyLateUndertime($validated['employee_name'], $validated['log_date']);
+            $this->calculateAndSaveDailyLateUndertime($validated['employee_name'], $validated['log_date']);
 
-           return response()->json(['status' => 'success', 'log' => $record]);
-       }
+            return response()->json(['status' => 'success', 'log' => $record]);
+        }
 
        public function destroyLogTime(DTRRecord $log)
        {

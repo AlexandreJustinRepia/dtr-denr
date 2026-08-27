@@ -135,13 +135,13 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         }
     };
 
-    const createLogTime = async (employeeName, date, time) => {
+    const createLogTime = async (employeeName, date, time, logType = 'out') => {
         try {
-            await axios.post('/store-log-time', { employee_name: employeeName, log_date: date, log_time: time });
+            await axios.post('/store-log-time', { employee_name: employeeName, log_date: date, log_time: time, log_type: logType });
             handleEmployeeSelect(employeeName);
         } catch (err) {
             console.error(err);
-            alert('Failed to add checkout time.');
+            alert(logType === 'in' ? 'Failed to add check-in time.' : 'Failed to add check-out time.');
         }
     };
 
@@ -185,7 +185,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
             const hm = h + m / 60;
             if (hm >= 5 && hm < 12 && !inTime) inTime = log;
             if (hm >= 12 && hm < 13 && !breakOut) breakOut = log;
-            if (breakOut && hm >= 12 && hm < 14 && !breakIn && log.time !== breakOut.time) breakIn = log;
+            if (breakOut && hm >= 12 && hm < 13 && !breakIn && log.time !== breakOut.time) breakIn = log;
             if (hm >= 13) outTime = log;
         });
 
