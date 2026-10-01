@@ -628,6 +628,7 @@ class DTRController extends Controller
                                 'name' => $holiday->name,
                                 'type' => $holiday->type,
                                 'suspension_start_time' => $holiday->suspension_start_time ? Carbon::parse($holiday->suspension_start_time)->format('g:i A') : null,
+                                'mc_number' => $holiday->mc_number,
                             ] : null,
                         ];
                     }
@@ -673,14 +674,17 @@ class DTRController extends Controller
         return response()->download($outputDocx)->deleteFileAfterSend(true);
     }
 
-    private function createDocxFile($employee, $month, $customOutputDir = null)
+    private function createDocxFile($employee, $month, $customOutputDir = null, $forcedStatus = null)
     {
         $parsedMonth = Carbon::parse($month);
         $monthName = $parsedMonth->format('F Y');
         $yearMonth = $parsedMonth->format('Y-m');
 
-        // Check status for template selection
-        $status = Employee::where('name', $employee)->value('status');
+        // Check status for template selection. Older DTR rows may have a status
+        // even when the employee profile has not been created yet.
+        $status = $forcedStatus
+            ?: Employee::where('name', $employee)->value('status')
+            ?: DTRRecord::where('employee_name', $employee)->value('status');
 
         $templateFile = ($status === 'PERMANENT') ? 'Perma.docx' : 'JO.docx';
         $templatePath = storage_path("app/templates/{$templateFile}");
@@ -741,12 +745,15 @@ class DTRController extends Controller
             if ($travelOrder) {
                 $checkIn = "TO: " . $travelOrder;
             } elseif ($holiday) {
-                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
-                if ($holiday->suspension_start_time) {
-                    $suspensionTime = Carbon::parse($holiday->suspension_start_time);
-                    $holidayLabel .= ' (FROM ' . $suspensionTime->format('g:i A') . ')';
+                if ($holiday->type !== 'mc') {
+                    $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                    if ($holiday->suspension_start_time) {
+                        $suspensionTime = Carbon::parse($holiday->suspension_start_time);
+                        $holidayLabel .= ' (FROM ' . $suspensionTime->format('g:i A') . ')';
+                    }
+                    $checkIn = "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel);
                 }
-                $checkIn = "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel);
+                // MC days: fall through to normal log processing below
             } else {
                 foreach ($logs as $log) {
                     $timeObj = Carbon::parse($log->log_time);
@@ -783,7 +790,23 @@ class DTRController extends Controller
             $lateMinutes = null;
             $undertimeMinutes = null;
 
-            if (!$travelOrder && !$holiday && $checkIn && $checkOut) {
+            // PERMANENT employees: skip late/undertime entirely
+            $employeeStatus = Employee::where('name', $employee)->value('status') ?: 'REGULAR';
+            $isPermanent = ($employeeStatus === 'PERMANENT');
+
+            // MC# days: if employee clocked in, skip late/undertime; if absent, treat as normal day
+            if ($holiday && $holiday->type === 'mc') {
+                if ($checkIn) {
+                    // MC day with check-in: no late/undertime
+                    $lateMinutes = null;
+                    $undertimeMinutes = null;
+                } else {
+                    // MC day without check-in (absent): treat as normal day
+                    $holiday = null;
+                }
+            }
+
+            if (!$isPermanent && !$travelOrder && !$holiday && $checkIn && $checkOut) {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
@@ -851,7 +874,7 @@ class DTRController extends Controller
                 }
             }
 
-            if (!$travelOrder && $holiday && $holiday->suspension_start_time && $checkIn && $checkOut) {
+            if (!$isPermanent && !$travelOrder && $holiday && $holiday->suspension_start_time && $checkIn && $checkOut && $holiday->type !== 'mc') {
                 $timeToMins = function ($t, $isPM = false) {
                     if (!$t)
                         return 0;
@@ -913,8 +936,9 @@ class DTRController extends Controller
                 return "{$m} min";
             };
 
-            $lateStr = $formatMins($lateMinutes);
-            $underStr = $formatMins($undertimeMinutes);
+            // Never include late or undertime in a permanent employee export.
+            $lateStr = $isPermanent ? '' : $formatMins($lateMinutes);
+            $underStr = $isPermanent ? '' : $formatMins($undertimeMinutes);
 
             // First table (Original)
             $templateProcessor->setValue("row1#{$day}", $day);
@@ -925,22 +949,39 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bin1#{$day}", "");
                 $templateProcessor->setValue("out1#{$day}", "");
             } elseif ($holiday) {
-                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
-                if ($holiday->suspension_start_time) {
-                    $holidayLabel .= ' (FROM ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
+                if ($holiday->type === 'mc') {
+                    $holidayLabel = 'MC#: ' . $holiday->mc_number;
+                    if ($holiday->suspension_start_time) {
+                        $holidayLabel .= ' (OUT @ ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
+                    }
+                } else {
+                    $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                    if ($holiday->suspension_start_time) {
+                        $holidayLabel .= ' (FROM ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
+                    }
                 }
                 $templateProcessor->setValue("in1#{$day}", "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel));
                 $templateProcessor->setValue("bout1#{$day}", "");
                 $templateProcessor->setValue("bin1#{$day}", "");
                 $templateProcessor->setValue("out1#{$day}", "");
+            } elseif ($holiday && $holiday->type === 'mc') {
+                // MC days: show actual times, MC# in late column
+                $templateProcessor->setValue("in1#{$day}", $checkIn);
+                $templateProcessor->setValue("bout1#{$day}", $breakOut);
+                $templateProcessor->setValue("bin1#{$day}", $breakIn);
+                $templateProcessor->setValue("out1#{$day}", $checkOut);
+                $templateProcessor->setValue("late1#{$day}", 'MC NO. ' . ($holiday->mc_number ?? 'N/A'));
+                $templateProcessor->setValue("under1#{$day}", '');
             } else {
                 $templateProcessor->setValue("in1#{$day}", $checkIn);
                 $templateProcessor->setValue("bout1#{$day}", $breakOut);
                 $templateProcessor->setValue("bin1#{$day}", $breakIn);
                 $templateProcessor->setValue("out1#{$day}", $checkOut);
             }
-            $templateProcessor->setValue("late1#{$day}", $lateStr);
-            $templateProcessor->setValue("under1#{$day}", $underStr);
+            if ($templateFile !== 'Perma.docx') {
+                $templateProcessor->setValue("late1#{$day}", $lateStr);
+                $templateProcessor->setValue("under1#{$day}", $underStr);
+            }
 
             // Second table (Duplicate)
             $templateProcessor->setValue("row2#{$day}", $day);
@@ -950,7 +991,7 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bout2#{$day}", "");
                 $templateProcessor->setValue("bin2#{$day}", "");
                 $templateProcessor->setValue("out2#{$day}", "");
-            } elseif ($holiday) {
+            } elseif ($holiday && $holiday->type !== 'mc') {
                 $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
                 if ($holiday->suspension_start_time) {
                     $holidayLabel .= ' (FROM ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
@@ -959,14 +1000,24 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bout2#{$day}", "");
                 $templateProcessor->setValue("bin2#{$day}", "");
                 $templateProcessor->setValue("out2#{$day}", "");
+            } elseif ($holiday && $holiday->type === 'mc') {
+                // MC days: show actual times, MC# in late column
+                $templateProcessor->setValue("in2#{$day}", $checkIn);
+                $templateProcessor->setValue("bout2#{$day}", $breakOut);
+                $templateProcessor->setValue("bin2#{$day}", $breakIn);
+                $templateProcessor->setValue("out2#{$day}", $checkOut);
+                $templateProcessor->setValue("late2#{$day}", 'MC NO. ' . ($holiday->mc_number ?? 'N/A'));
+                $templateProcessor->setValue("under2#{$day}", '');
             } else {
                 $templateProcessor->setValue("in2#{$day}", $checkIn);
                 $templateProcessor->setValue("bout2#{$day}", $breakOut);
                 $templateProcessor->setValue("bin2#{$day}", $breakIn);
                 $templateProcessor->setValue("out2#{$day}", $checkOut);
             }
-            $templateProcessor->setValue("late2#{$day}", $lateStr);
-            $templateProcessor->setValue("under2#{$day}", $underStr);
+            if ($templateFile !== 'Perma.docx') {
+                $templateProcessor->setValue("late2#{$day}", $lateStr);
+                $templateProcessor->setValue("under2#{$day}", $underStr);
+            }
         }
 
         $safeName = str_replace([' ', '/', '\\'], '_', $employee);
@@ -980,6 +1031,12 @@ class DTRController extends Controller
 
         // Perform raw XML manipulation to merge cells for Travel Orders
         $this->applyWordCellMerge($outputPath);
+
+        // The permanent template contains late/undertime columns for layout
+        // compatibility. Remove their visible labels from permanent exports.
+        if ($isPermanent) {
+            $this->removePermanentLateHeaders($outputPath);
+        }
 
         return $outputPath;
     }
@@ -1039,6 +1096,26 @@ class DTRController extends Controller
             $zip->addFromString('word/document.xml', $xml);
             $zip->close();
         }
+    }
+
+    private function removePermanentLateHeaders($path)
+    {
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== TRUE) {
+            return;
+        }
+
+        $xml = $zip->getFromName('word/document.xml');
+        if ($xml !== false) {
+            $xml = str_replace(
+                ['<w:t>LATE</w:t>', '<w:t>UNDERTIME</w:t>'],
+                ['<w:t></w:t>', '<w:t></w:t>'],
+                $xml
+            );
+            $zip->addFromString('word/document.xml', $xml);
+        }
+
+        $zip->close();
     }
 
 
@@ -1186,7 +1263,9 @@ class DTRController extends Controller
         $monthStr = "{$year}-" . str_pad($month, 2, '0', STR_PAD_LEFT);
         foreach ($employees as $employee) {
             try {
-                $docxPath = $this->createDocxFile($employee, $monthStr, $tempDir);
+                // The selected bulk status is authoritative. This guarantees
+                // permanent bulk exports always use the permanent template.
+                $docxPath = $this->createDocxFile($employee, $monthStr, $tempDir, $status);
                 if ($docxPath) {
                     $docxFiles[] = $docxPath;
                 }
@@ -1296,6 +1375,12 @@ class DTRController extends Controller
 
           $result = [];
 
+          // Check if employee is PERMANENT
+          $empStatus = \App\Models\Employee::where('name', $employee)->value('status')
+              ?: DTRRecord::where('employee_name', $employee)->value('status')
+              ?: 'REGULAR';
+          $isPermanent = ($empStatus === 'PERMANENT');
+
           foreach ($logs as $monthKey => $daysGroup) {
               $yearNum = (int) substr($monthKey, 0, 4);
               $monthNum = (int) substr($monthKey, 5, 2);
@@ -1320,12 +1405,13 @@ class DTRController extends Controller
                          'logs' => $dayLogs,
                          'schedule_type' => $effectiveScheduleType,
                          'travel_order' => $daysGroup->where('log_date', $dateStr)->whereNotNull('travel_order')->first()?->travel_order,
-                         'late_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->late_minutes,
-                         'undertime_minutes' => $daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes,
+                         'late_minutes' => $isPermanent ? null : ($daysGroup->where('log_date', $dateStr)->first()?->late_minutes),
+                         'undertime_minutes' => $isPermanent ? null : ($daysGroup->where('log_date', $dateStr)->first()?->undertime_minutes),
                          'holiday' => $holiday ? [
                              'name' => $holiday->name,
                              'type' => $holiday->type,
                              'suspension_start_time' => $holiday->suspension_start_time ? Carbon::parse($holiday->suspension_start_time)->format('g:i A') : null,
+                             'mc_number' => $holiday->mc_number,
                          ] : null,
                      ];
               }
@@ -1347,7 +1433,7 @@ class DTRController extends Controller
               ->values()
               ->toArray();
 
-          return response()->json(['records' => $result, 'breaks' => $breaks]);
+          return response()->json(['records' => $result, 'breaks' => $breaks, 'status' => $empStatus]);
       }
 
       public function updateLogTime(Request $request)
@@ -1365,6 +1451,15 @@ class DTRController extends Controller
 
        private function calculateAndSaveDailyLateUndertime($employeeName, $logDate)
        {
+           // PERMANENT employees: skip late/undertime entirely
+           $status = \App\Models\Employee::where('name', $employeeName)->value('status') ?: 'REGULAR';
+           if ($status === 'PERMANENT') {
+               DTRRecord::where('employee_name', $employeeName)
+                   ->whereDate('log_date', $logDate)
+                   ->update(['late_minutes' => null, 'undertime_minutes' => null]);
+               return;
+           }
+
            $holiday = $this->isHolidayOrSuspended($logDate);
            if ($holiday) {
                if ($holiday->suspension_start_time) {
@@ -1392,7 +1487,9 @@ class DTRController extends Controller
                    $lateMinutes = null;
                    $undertimeMinutes = null;
 
-                    if ($checkIn && $checkOut) {
+                    // PERMANENT employees: skip late/undertime entirely
+                    $empStatus = \App\Models\Employee::where('name', $employeeName)->value('status') ?: 'REGULAR';
+                    if ($empStatus !== 'PERMANENT' && $checkIn && $checkOut && $holiday->type !== 'mc') {
                         $inMins = $this->timeToMins($checkIn, false);
                         $outMins = $this->timeToMins($checkOut, true);
                         $suspensionMins = $suspensionTime->hour * 60 + $suspensionTime->minute;

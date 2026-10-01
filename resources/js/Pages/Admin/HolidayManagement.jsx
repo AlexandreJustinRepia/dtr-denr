@@ -32,6 +32,7 @@ export default function HolidayManagement({ holidays, filters }) {
         name: '',
         type: 'holiday',
         suspension_start_time: '',
+        mc_number: '',
     });
 
     const showSuccess = (message) => {
@@ -231,10 +232,17 @@ export default function HolidayManagement({ holidays, filters }) {
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold uppercase border ${
                                                     h.type === 'holiday'
                                                         ? 'bg-red-50 text-red-700 border-red-200'
-                                                        : 'bg-orange-50 text-orange-700 border-orange-200'
+                                                        : h.type === 'suspended'
+                                                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                                                            : 'bg-sky-50 text-sky-700 border-sky-200'
                                                 }`}>
-                                                    {h.type}
+                                                    {h.type === 'mc' ? `MC# ${h.mc_number || 'N/A'}` : h.type}
                                                 </span>
+                                                {h.mc_number && h.type === 'mc' && (
+                                                    <span className="text-[10px] text-sky-600 font-semibold block mt-0.5">
+                                                        {h.suspension_start_time ? `Out: ${h.suspension_start_time}` : 'Full Day'}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-6 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -318,6 +326,7 @@ export default function HolidayManagement({ holidays, filters }) {
                             >
                                 <option value="holiday">Holiday</option>
                                 <option value="suspended">Suspended Day</option>
+                                <option value="mc">MC# (Special Authorization)</option>
                             </select>
                             {errors.type && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.type[0]}</p>}
                         </div>
@@ -333,6 +342,19 @@ export default function HolidayManagement({ holidays, filters }) {
                             />
                             {errors.suspension_start_time && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.suspension_start_time[0]}</p>}
                             <p className="text-[10px] text-gray-400 mt-1 font-medium">If set, late/undertime will still be calculated up to this time.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 uppercase mb-1">MC# Number (optional)</label>
+                            <input
+                                type="text"
+                                value={form.mc_number}
+                                onChange={e => setForm({...form, mc_number: e.target.value})}
+                                className={`w-full px-3 py-2 border rounded text-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 ${errors.mc_number ? 'border-red-500' : 'border-gray-300'}`}
+                                placeholder="e.g. MC-2024-001"
+                            />
+                            {errors.mc_number && <p className="text-red-500 text-[10px] mt-1 font-semibold uppercase">{errors.mc_number[0]}</p>}
+                            <p className="text-[10px] text-gray-400 mt-1 font-medium">Reference number for Medical Certificate / special authorization.</p>
                         </div>
 
                         <div className="flex justify-end gap-3 pt-6 border-t border-gray-100 mt-6">

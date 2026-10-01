@@ -21,6 +21,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
     const [filterYear, setFilterYear] = useState(currentYear);
     const [status, setStatus] = useState(filters?.status || '');
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [selectedEmployeeStatus, setSelectedEmployeeStatus] = useState(null);
     const [isToModalOpen, setIsToModalOpen] = useState(false);
     const [toData, setToData] = useState(null); // { employeeName, date, travel_order }
     const [editingTO, setEditingTO] = useState(null); // { date, value }
@@ -39,6 +40,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
         try {
             const res = await axios.get(`/fetch-dtr/${encodeURIComponent(employeeName)}/${filterMonth}/${filterYear}?status=${status}`);
             setRecords({ [employeeName]: res.data.records });
+            setSelectedEmployeeStatus(res.data.status || null);
             const breaksMap = {};
             (res.data.breaks || []).forEach(b => {
                 breaksMap[b.log_date] = b;
@@ -292,7 +294,7 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
     const handleSearch = () => performRequest({ searchValue: search, monthValue: filterMonth, yearValue: filterYear, statusValue: status });
     const handleKeyDown = (e) => e.key === 'Enter' && handleSearch();
     const handleReset = () => {
-        setSearch(''); setFilterMonth(currentMonth); setFilterYear(currentYear); setStatus(''); setSelectedEmployee(null);
+        setSearch(''); setFilterMonth(currentMonth); setFilterYear(currentYear); setStatus(''); setSelectedEmployee(null); setSelectedEmployeeStatus(null);
         performRequest({ searchValue: '', monthValue: currentMonth, yearValue: currentYear, statusValue: '', updateList: true });
     };
 
@@ -413,7 +415,8 @@ export default function DTRLanding({ employees, filters, availableDates, stats }
                             setEditingTO={setEditingTO}
                             upsertBreak={upsertBreak}
                             breaks={breaks}
-                        />
+                            status={selectedEmployeeStatus || status}
+                            />
                     </div>
                 </div>
             </main>

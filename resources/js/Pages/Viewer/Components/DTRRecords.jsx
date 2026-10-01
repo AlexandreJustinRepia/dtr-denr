@@ -46,7 +46,8 @@ export default function DTRRecords({
     editingTO,
     setEditingTO,
     breaks,
-    upsertBreak
+    upsertBreak,
+    status = 'REGULAR'
 }) {
     const [editing, setEditing] = useState(null); // { id, value, type, date }
     const [breakEditing, setBreakEditing] = useState(null); // { date, field, value }
@@ -165,8 +166,12 @@ export default function DTRRecords({
                                                         <th className="px-4 py-3 text-center">Break Out</th>
                                                         <th className="px-4 py-3 text-center">Break In</th>
                                                         <th className="px-4 py-3 text-center">Check Out</th>
-                                                        <th className="px-4 py-3 text-center">Late</th>
-                                                        <th className="px-4 py-3 text-center">Undertime</th>
+                                                        {status !== 'PERMANENT' && (
+                                                            <>
+                                                            <th className="px-4 py-3 text-center">Late</th>
+                                                            <th className="px-4 py-3 text-center">Undertime</th>
+                                                            </>
+                                                        )}
                                                     </tr>
                                                 </thead>
 
@@ -196,40 +201,41 @@ export default function DTRRecords({
                                                           };
 
                                                            if (isValidTime(actualIn) || isValidTime(actualOut)) {
-                                                               const timeToMins = (t) => {
+                                                               if (status !== 'PERMANENT') {
+                                                                   const timeToMins = (t) => {
                                                                    if (!t) return 0;
                                                                    const [h, m] = t.split(':').map(Number);
                                                                    return h * 60 + m;
                                                                };
 
-                                                                const inMins = actualIn ? timeToMins(actualIn) : null;
-                                                                const outMins = actualOut ? timeToMins(actualOut) : null;
-                                                                const schedStartMins = timeToMins(scheduled.start);
-                                                                const schedEndMins = timeToMins(scheduled.end);
-                                                                const latestStartMins = timeToMins(scheduled.latest);
-                                                                const shiftLength = schedEndMins - schedStartMins;
+                                                               const inMins = actualIn ? timeToMins(actualIn) : null;
+                                                               const outMins = actualOut ? timeToMins(actualOut) : null;
+                                                               const schedStartMins = timeToMins(scheduled.start);
+                                                               const schedEndMins = timeToMins(scheduled.end);
+                                                               const latestStartMins = timeToMins(scheduled.latest);
+                                                               const shiftLength = schedEndMins - schedStartMins;
 
-                                                                if (inMins !== null && outMins !== null && !data.holiday) {
-                                                                    const late = Math.max(0, inMins - latestStartMins);
-                                                                    if (late > 0) lateMinutes = late;
+                                                               if (inMins !== null && outMins !== null && !data.holiday) {
+                                                                   const late = Math.max(0, inMins - latestStartMins);
+                                                                   if (late > 0) lateMinutes = late;
 
-                                                                    const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
-                                                                    const effectiveStartMins = Math.max(earliestStart, inMins);
+                                                                   const earliestStart = (scheduled.start === "07:00") ? 420 : 360;
+                                                                   const effectiveStartMins = Math.max(earliestStart, inMins);
 
-                                                                    let requiredEndMins;
-                                                                    if (data.schedule_type === '8HR_FLEXI') {
-                                                                        requiredEndMins = inMins + 540; // 9 hours from check-in
-                                                                    } else {
-                                                                        requiredEndMins = effectiveStartMins + shiftLength;
-                                                                    }
-                                                                    const undertime = Math.max(0, requiredEndMins - outMins);
-                                                                    if (undertime > 0) {
-                                                                        lateMinutes = (lateMinutes || 0) + undertime;
-                                                                    }
-                                                                }
+                                                                   let requiredEndMins;
+                                                                   if (data.schedule_type === '8HR_FLEXI') {
+                                                                       requiredEndMins = inMins + 540; // 9 hours from check-in
+                                                                   } else {
+                                                                       requiredEndMins = effectiveStartMins + shiftLength;
+                                                                   }
+                                                                   const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                   if (undertime > 0) {
+                                                                       lateMinutes = (lateMinutes || 0) + undertime;
+                                                                   }
+                                                               }
                                                            }
 
-                                                         const isHoliday = data.holiday && (data.holiday.type === 'holiday' || data.holiday.type === 'suspended');
+                                                         }
 
                                                          return (
                                                              <tr key={date} className={`hover:bg-gray-50 transition-colors group ${isHoliday ? 'bg-red-50/40' : ''}`}>
@@ -259,7 +265,7 @@ export default function DTRRecords({
                                                                                   </button>
                                                                                  {!data.travel_order && isHoliday && (
                                                                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border bg-red-100 text-red-700 border-red-200 uppercase tracking-wider">
-                                                                                         {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
+                                                                                         {data.holiday.type === 'suspended' ? 'SUSPENDED' : data.holiday.type === 'mc' ? `MC NO. ${data.holiday.mc_number || 'N/A'}` : 'HOLIDAY'}
                                                                                      </span>
                                                                                  )}
                                                                                  {!data.travel_order && !isHoliday && (
@@ -337,21 +343,197 @@ export default function DTRRecords({
                                                                          )}
                                                                      </td>
                                                                   ) : isHoliday ? (
-                                                                      <td colSpan="4" className="px-4 py-3 text-center bg-red-50/60">
-                                                                          <div className="flex flex-col items-center justify-center gap-1">
-                                                                              <span className="text-[10px] font-bold uppercase tracking-widest text-red-500">
-                                                                                  {data.holiday.type === 'suspended' ? 'SUSPENDED' : 'HOLIDAY'}
-                                                                              </span>
-                                                                              <span className="text-sm font-bold text-red-700 uppercase">
-                                                                                  {data.holiday.name}
-                                                                              </span>
-                                                                              {data.holiday.suspension_start_time && (
-                                                                                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-100 px-2 py-0.5 rounded border border-red-200">
-                                                                                      Suspended from {data.holiday.suspension_start_time}
+                                                                      <>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {checkinEditing && checkinEditing.date === date ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={checkinEditing.value}
+                                                                                      onChange={(e) => setCheckinEditing({ ...checkinEditing, value: e.target.value })}
+                                                                                      onBlur={() => {
+                                                                                          if (checkinEditing.value) {
+                                                                                              createLogTime(selectedEmployee, date, checkinEditing.value, 'in');
+                                                                                          }
+                                                                                          setCheckinEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={(e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              if (checkinEditing.value) {
+                                                                                                  createLogTime(selectedEmployee, date, checkinEditing.value, 'in');
+                                                                                              }
+                                                                                              setCheckinEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setCheckinEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : editing && editing.id === inTime?.id ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={editing.value}
+                                                                                      onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                      onBlur={() => {
+                                                                                          updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                          setEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={(e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                              setEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-green-500 focus:ring-1 focus:ring-green-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : (
+                                                                                  <span
+                                                                                      onClick={() => {
+                                                                                          if (inTime) setEditing({ id: inTime.id, value: inTime.time });
+                                                                                          else setCheckinEditing({ date, value: '' });
+                                                                                      }}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${inTime ? 'text-gray-900 hover:text-green-700 hover:underline' : 'text-gray-300 hover:text-gray-500'}`}>
+                                                                                      {format12Hour(inTime) || '--:--'}
                                                                                   </span>
                                                                               )}
-                                                                          </div>
-                                                                      </td>
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {breakEditing && breakEditing.date === date && breakEditing.field === 'break_out_time' ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={breakEditing.value}
+                                                                                      onChange={(e) => setBreakEditing({ ...breakEditing, value: e.target.value })}
+                                                                                      onBlur={async () => {
+                                                                                          const success = await upsertBreak(selectedEmployee, date, 'break_out_time', breakEditing.value);
+                                                                                          if (success) setBreakEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={async (e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              const success = await upsertBreak(selectedEmployee, date, 'break_out_time', breakEditing.value);
+                                                                                              if (success) setBreakEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setBreakEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : inTime ? (
+                                                                                  <span
+                                                                                      onDoubleClick={() => setBreakEditing({ date, field: 'break_out_time', value: manualBreakOut?.time || breakOut?.time || '' })}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakOut ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                      {format12Hour(manualBreakOut) || '--:--'}
+                                                                                  </span>
+                                                                              ) : (
+                                                                                  <span className="font-medium text-sm text-gray-300 block">--:--</span>
+                                                                              )}
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {breakEditing && breakEditing.date === date && breakEditing.field === 'break_in_time' ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={breakEditing.value}
+                                                                                      onChange={(e) => setBreakEditing({ ...breakEditing, value: e.target.value })}
+                                                                                      onBlur={async () => {
+                                                                                          const success = await upsertBreak(selectedEmployee, date, 'break_in_time', breakEditing.value);
+                                                                                          if (success) setBreakEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={async (e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              const success = await upsertBreak(selectedEmployee, date, 'break_in_time', breakEditing.value);
+                                                                                              if (success) setBreakEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setBreakEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : inTime ? (
+                                                                                  <span
+                                                                                      onDoubleClick={() => setBreakEditing({ date, field: 'break_in_time', value: manualBreakIn?.time || breakIn?.time || '' })}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${manualBreakIn ? 'text-gray-900 hover:text-orange-600 hover:underline' : 'text-gray-400'}`}>
+                                                                                      {format12Hour(manualBreakIn) || '--:--'}
+                                                                                  </span>
+                                                                              ) : (
+                                                                                  <span className="font-medium text-sm text-gray-300 block">--:--</span>
+                                                                              )}
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center border-l border-gray-100">
+                                                                              {checkoutEditing && checkoutEditing.date === date ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={checkoutEditing.value}
+                                                                                      onChange={(e) => setCheckoutEditing({ ...checkoutEditing, value: e.target.value })}
+                                                                                      onBlur={() => {
+                                                                                          if (checkoutEditing.value) {
+                                                                                              createLogTime(selectedEmployee, date, checkoutEditing.value);
+                                                                                          }
+                                                                                          setCheckoutEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={(e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              if (checkoutEditing.value) {
+                                                                                                  createLogTime(selectedEmployee, date, checkoutEditing.value);
+                                                                                              }
+                                                                                              setCheckoutEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setCheckoutEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : editing && editing.id === outTime?.id ? (
+                                                                                  <input
+                                                                                      autoFocus
+                                                                                      type="time"
+                                                                                      value={editing.value}
+                                                                                      onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                                                                                      onBlur={() => {
+                                                                                          updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                          setEditing(null);
+                                                                                      }}
+                                                                                      onKeyDown={(e) => {
+                                                                                          if (e.key === 'Enter') {
+                                                                                              updateLogTime(editing.id, editing.value, selectedEmployee);
+                                                                                              setEditing(null);
+                                                                                          }
+                                                                                          if (e.key === 'Escape') setEditing(null);
+                                                                                      }}
+                                                                                      className="font-medium text-sm px-2 py-1 rounded border border-red-500 focus:ring-1 focus:ring-red-500 outline-none w-24 text-center"
+                                                                                  />
+                                                                              ) : (
+                                                                                  <span
+                                                                                      onClick={() => {
+                                                                                          if (outTime) {
+                                                                                              setEditing({ id: outTime.id, value: outTime.time });
+                                                                                          } else if (inTime) {
+                                                                                              setCheckoutEditing({ date, value: '' });
+                                                                                          }
+                                                                                      }}
+                                                                                      className={`font-medium text-sm transition-colors cursor-pointer block ${outTime ? 'text-gray-900 hover:text-red-600 hover:underline' : inTime ? 'text-gray-400 hover:text-gray-500' : 'text-gray-300 cursor-default'}`}>
+                                                                                      {format12Hour(outTime) || '--:--'}
+                                                                                  </span>
+                                                                              )}
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center">
+                                                                              {data.holiday.type === 'mc' && data.holiday.mc_number ? (
+                                                                                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-1 rounded border border-sky-200">
+                                                                                      MC NO. {data.holiday.mc_number}
+                                                                                  </span>
+                                                                              ) : data.holiday.type === 'suspended' && data.holiday.suspension_start_time ? (
+                                                                                  <span className="text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 px-2 py-1 rounded border border-orange-200">
+                                                                                      SUSPENDED from {data.holiday.suspension_start_time}
+                                                                                  </span>
+                                                                              ) : data.holiday.name ? (
+                                                                                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-1 rounded border border-red-200">
+                                                                                      {data.holiday.name}
+                                                                                  </span>
+                                                                              ) : (
+                                                                                  <span className="text-xs text-gray-400">-</span>
+                                                                              )}
+                                                                          </td>
+                                                                          <td className="px-4 py-3 text-center text-sm text-gray-400">-</td>
+                                                                      </>
                                                                   ) : (
                                                                      <>
                                                                          <td className="px-4 py-3 text-center">
@@ -534,12 +716,12 @@ export default function DTRRecords({
                                                                      </>
                                                                  ) : (
                                                                      <>
-                                                                         <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                                                                         {status !== 'PERMANENT' && <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                                                                              {lateMinutes && lateMinutes > 0 ? formatMins(lateMinutes) : ''}
-                                                                         </td>
-                                                                         <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
+                                                                         </td>}
+                                                                         {status !== 'PERMANENT' && <td className="px-4 py-3 text-center text-sm font-medium text-gray-700">
                                                                              {undertimeMinutes && undertimeMinutes > 0 ? formatMins(undertimeMinutes) : ''}
-                                                                         </td>
+                                                                         </td>}
                                                                      </>
                                                                  )}
                                                             </tr>

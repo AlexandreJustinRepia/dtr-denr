@@ -16,6 +16,7 @@ class Holiday extends Model
         'name',
         'type',
         'suspension_start_time',
+        'mc_number',
     ];
 
     protected $casts = [

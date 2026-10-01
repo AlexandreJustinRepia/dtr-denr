@@ -29,8 +29,9 @@ class HolidayController extends Controller
         $validated = $request->validate([
             'date' => 'required|date|unique:holidays,date',
             'name' => 'required|string|max:255',
-            'type' => 'required|in:holiday,suspended',
+            'type' => 'required|in:holiday,suspended,mc',
             'suspension_start_time' => 'nullable|date_format:H:i',
+            'mc_number' => 'nullable|string|max:255',
         ]);
 
         $holiday = Holiday::create($validated);
@@ -48,8 +49,9 @@ class HolidayController extends Controller
         $validated = $request->validate([
             'date' => 'required|date|unique:holidays,date,' . $holiday->id,
             'name' => 'required|string|max:255',
-            'type' => 'required|in:holiday,suspended',
+            'type' => 'required|in:holiday,suspended,mc',
             'suspension_start_time' => 'nullable|date_format:H:i',
+            'mc_number' => 'nullable|string|max:255',
         ]);
 
         $holiday->update($validated);
