@@ -744,16 +744,13 @@ class DTRController extends Controller
 
             if ($travelOrder) {
                 $checkIn = "TO: " . $travelOrder;
-            } elseif ($holiday) {
-                if ($holiday->type !== 'mc') {
-                    $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
-                    if ($holiday->suspension_start_time) {
-                        $suspensionTime = Carbon::parse($holiday->suspension_start_time);
-                        $holidayLabel .= ' (FROM ' . $suspensionTime->format('g:i A') . ')';
-                    }
-                    $checkIn = "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel);
+            } elseif ($holiday && $holiday->type !== 'mc') {
+                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                if ($holiday->suspension_start_time) {
+                    $suspensionTime = Carbon::parse($holiday->suspension_start_time);
+                    $holidayLabel .= ' (FROM ' . $suspensionTime->format('g:i A') . ')';
                 }
-                // MC days: fall through to normal log processing below
+                $checkIn = "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel);
             } else {
                 foreach ($logs as $log) {
                     $timeObj = Carbon::parse($log->log_time);
@@ -948,17 +945,10 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bout1#{$day}", "");
                 $templateProcessor->setValue("bin1#{$day}", "");
                 $templateProcessor->setValue("out1#{$day}", "");
-            } elseif ($holiday) {
-                if ($holiday->type === 'mc') {
-                    $holidayLabel = 'MC#: ' . $holiday->mc_number;
-                    if ($holiday->suspension_start_time) {
-                        $holidayLabel .= ' (OUT @ ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
-                    }
-                } else {
-                    $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
-                    if ($holiday->suspension_start_time) {
-                        $holidayLabel .= ' (FROM ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
-                    }
+            } elseif ($holiday && $holiday->type !== 'mc') {
+                $holidayLabel = strtoupper($holiday->type) . ': ' . strtoupper($holiday->name);
+                if ($holiday->suspension_start_time) {
+                    $holidayLabel .= ' (FROM ' . Carbon::parse($holiday->suspension_start_time)->format('g:i A') . ')';
                 }
                 $templateProcessor->setValue("in1#{$day}", "MERGE_ROW_1_{$day}_HOLIDAY_" . rawurlencode($holidayLabel));
                 $templateProcessor->setValue("bout1#{$day}", "");
@@ -978,7 +968,7 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bin1#{$day}", $breakIn);
                 $templateProcessor->setValue("out1#{$day}", $checkOut);
             }
-            if ($templateFile !== 'Perma.docx') {
+            if ($templateFile !== 'Perma.docx' && !($holiday && $holiday->type === 'mc')) {
                 $templateProcessor->setValue("late1#{$day}", $lateStr);
                 $templateProcessor->setValue("under1#{$day}", $underStr);
             }
@@ -1014,7 +1004,7 @@ class DTRController extends Controller
                 $templateProcessor->setValue("bin2#{$day}", $breakIn);
                 $templateProcessor->setValue("out2#{$day}", $checkOut);
             }
-            if ($templateFile !== 'Perma.docx') {
+            if ($templateFile !== 'Perma.docx' && !($holiday && $holiday->type === 'mc')) {
                 $templateProcessor->setValue("late2#{$day}", $lateStr);
                 $templateProcessor->setValue("under2#{$day}", $underStr);
             }

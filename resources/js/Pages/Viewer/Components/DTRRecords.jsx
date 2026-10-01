@@ -178,6 +178,7 @@ export default function DTRRecords({
                                                 <tbody className="divide-y divide-gray-200">
                                                     {Object.entries(days).map(([date, data]) => {
                                                         const { inTime, breakOut, breakIn, outTime } = processLogs(data.logs);
+                                                        const isHoliday = Boolean(data.holiday);
                                                         const manualBreak = manualBreaksByDate[date] || null;
                                                         const manualBreakOut = manualBreak?.break_out_time ? { id: 'break-out-' + date, time: manualBreak.break_out_time } : breakOut;
                                                         const manualBreakIn = manualBreak?.break_in_time ? { id: 'break-in-' + date, time: manualBreak.break_in_time } : breakIn;
