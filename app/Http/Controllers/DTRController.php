@@ -866,7 +866,7 @@ class DTRController extends Controller
                         }
                         $under = max(0, $requiredEndMins - $outMins);
                         if ($under > 0)
-                            $lateMinutes = ($lateMinutes ?? 0) + $under;
+                            $undertimeMinutes = $under;
                     }
                 }
             }
@@ -917,7 +917,7 @@ class DTRController extends Controller
                     $cappedOutMins = min($outMins, $suspensionMins);
                     $requiredEndMins = $effectiveStartMins + $shiftLength;
                     $under = max(0, $requiredEndMins - $cappedOutMins);
-                    if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+                    if ($under > 0) $undertimeMinutes = $under;
                 }
             }
 
@@ -1499,7 +1499,7 @@ class DTRController extends Controller
                         $cappedOutMins = min($outMins, $suspensionMins);
                         $requiredEndMins = $effectiveStartMins + $shiftLength;
                         $under = max(0, $requiredEndMins - $cappedOutMins);
-                        if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+                        if ($under > 0) $undertimeMinutes = $under;
                     }
 
                    DTRRecord::where('employee_name', $employeeName)
@@ -1597,7 +1597,7 @@ class DTRController extends Controller
                         $requiredEndMins = $effectiveStartMins + $shiftLength;
                     }
                     $under = max(0, $requiredEndMins - $outMins);
-                    if ($under > 0) $lateMinutes = ($lateMinutes ?? 0) + $under;
+                    if ($under > 0) $undertimeMinutes = $under;
                 }
             }
 

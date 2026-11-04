@@ -229,10 +229,10 @@ export default function DTRRecords({
                                                                    } else {
                                                                        requiredEndMins = effectiveStartMins + shiftLength;
                                                                    }
-                                                                   const undertime = Math.max(0, requiredEndMins - outMins);
-                                                                   if (undertime > 0) {
-                                                                       lateMinutes = (lateMinutes || 0) + undertime;
-                                                                   }
+const undertime = Math.max(0, requiredEndMins - outMins);
+                                                                    if (undertime > 0) {
+                                                                        undertimeMinutes = undertime;
+                                                                    }
                                                                }
                                                            }
 
